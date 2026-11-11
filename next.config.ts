@@ -1,8 +1,14 @@
 import type { NextConfig } from "next";
 
+const isGitHubActions = process.env.GITHUB_ACTIONS === "true";
+
 const nextConfig: NextConfig = {
-  output: "standalone",
-  /* config options here */
+  output: isGitHubActions ? "export" : "standalone",
+  basePath: isGitHubActions ? "/KJXGX" : "",
+  trailingSlash: true,
+  images: {
+    unoptimized: true,
+  },
   typescript: {
     ignoreBuildErrors: true,
   },

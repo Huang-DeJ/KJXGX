@@ -1,0 +1,655 @@
+     1→     1→import { WavefrontIntro } from "@/components/coherence/wavefront-intro"
+     2→     2→import { Wavefront3D } from "@/components/coherence/wavefront-3d"
+     3→     3→import { WavefrontCoherence } from "@/components/coherence/wavefront-coherence"
+     4→     4→import { DoubleSlitLab } from "@/components/coherence/double-slit-lab"
+     5→     5→import { FadeIn } from "@/components/coherence/fade-in"
+     6→     6→import { Badge } from "@/components/ui/badge"
+     7→     7→import { Button } from "@/components/ui/button"
+     8→     8→import {
+     9→     9→  Card,
+    10→    10→  CardContent,
+    11→    11→  CardDescription,
+    12→    12→  CardHeader,
+    13→    13→  CardTitle,
+    14→    14→} from "@/components/ui/card"
+    15→    15→import {
+    16→    16→  Table,
+    17→    17→  TableBody,
+    18→    18→  TableCell,
+    19→    19→  TableHead,
+    20→    20→  TableHeader,
+    21→    21→  TableRow,
+    22→    22→} from "@/components/ui/table"
+    23→    23→import {
+    24→    24→  Alert,
+    25→    25→  AlertDescription,
+    26→    26→  AlertTitle,
+    27→    27→} from "@/components/ui/alert"
+    28→    28→import {
+    29→    29→  Activity,
+    30→    30→  Waves,
+    31→    31→  Shuffle,
+    32→    32→  Lightbulb,
+    33→    33→  MoveVertical,
+    34→    34→  Zap,
+    35→    35→  Sun,
+    36→    36→  Star,
+    37→    37→  Ruler,
+    38→    38→  FlaskConical,
+    39→    39→  ChevronDown,
+    40→    40→  Sparkles,
+    41→    41→  Hand,
+    42→    42→  MousePointer2,
+    43→    43→  LineChart,
+    44→    44→  Timer,
+    45→    45→  Aperture,
+    46→    46→  ScanLine,
+    47→    47→  CircleDot,
+    48→    48→  MoveHorizontal,
+    49→    49→} from "lucide-react"
+    50→    50→
+    51→    51→const NAV_ITEMS = [
+    52→    52→  { href: "#wavefront", label: "什么是波前" },
+    53→    53→  { href: "#concept", label: "核心概念" },
+    54→    54→  { href: "#demo", label: "核心动画" },
+    55→    55→  { href: "#lab", label: "双缝实验" },
+    56→    56→  { href: "#quant", label: "定量与实例" },
+    57→    57→  { href: "#compare", label: "对比总结" },
+    58→    58→]
+    59→    59→
+    60→    60→export default function Home() {
+    61→    61→  return (
+    62→    62→    <div className="flex min-h-screen flex-col bg-zinc-950 text-zinc-100 selection:bg-emerald-500/30">
+    63→    63→      {/* ---------------- 顶部导航 ---------------- */}
+    64→    64→      <header className="sticky top-0 z-40 border-b border-white/5 bg-zinc-950/85 backdrop-blur-md">
+    65→    65→        <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-4 sm:px-6">
+    66→    66→          <a href="#top" className="flex items-center gap-2 text-sm font-semibold tracking-tight">
+    67→    67→            <Waves className="h-4.5 w-4.5 text-emerald-400" />
+    68→    68→            <span>空间相干性 · 动画讲解</span>
+    69→    69→          </a>
+    70→    70→          <nav className="hidden items-center gap-1 md:flex" aria-label="页面导航">
+    71→    71→            {NAV_ITEMS.map((it) => (
+    72→    72→              <a
+    73→    73→                key={it.href}
+    74→    74→                href={it.href}
+    75→    75→                className="rounded-md px-3 py-1.5 text-sm text-zinc-400 transition-colors hover:bg-white/5 hover:text-zinc-100"
+    76→    76→              >
+    77→    77→                {it.label}
+    78→    78→              </a>
+    79→    79→            ))}
+    80→    80→          </nav>
+    81→    81→          <Badge variant="outline" className="border-emerald-500/40 bg-emerald-500/10 text-emerald-300">
+    82→    82→            波动光学
+    83→    83→          </Badge>
+    84→    84→        </div>
+    85→    85→      </header>
+    86→    86→
+    87→    87→      <main id="top" className="flex-1">
+    88→    88→        {/* ---------------- Hero ---------------- */}
+    89→    89→        <section className="relative overflow-hidden">
+    90→    90→          <div
+    91→    91→            aria-hidden
+    92→    92→            className="pointer-events-none absolute inset-0 opacity-[0.13]"
+    93→    93→            style={{
+    94→    94→              backgroundImage:
+    95→    95→                "repeating-linear-gradient(90deg, rgba(52,211,153,0.16) 0 1px, transparent 1px 46px)",
+    96→    96→            }}
+    97→    97→          />
+    98→    98→          <div
+    99→    99→            aria-hidden
+   100→   100→            className="pointer-events-none absolute -top-32 left-1/2 h-96 w-[42rem] -translate-x-1/2 rounded-full bg-emerald-500/10 blur-3xl"
+   101→   101→          />
+   102→   102→          <div className="relative mx-auto max-w-6xl px-4 pb-16 pt-16 sm:px-6 sm:pt-24">
+   103→   103→            <FadeIn className="flex flex-col items-center text-center">
+   104→   104→              <Badge
+   105→   105→                variant="outline"
+   106→   106→                className="mb-5 border-emerald-500/40 bg-emerald-500/10 px-3 py-1 text-xs text-emerald-300"
+   107→   107→              >
+   108→   108→                <Sparkles className="mr-1.5 h-3.5 w-3.5" />
+   109→   109→                四个交互动画 · 拖一拖就懂
+   110→   110→              </Badge>
+   111→   111→              <h1 className="bg-gradient-to-r from-emerald-300 via-teal-200 to-emerald-200 bg-clip-text text-5xl font-bold tracking-tight text-transparent sm:text-7xl">
+   112→   112→                空间相干性
+   113→   113→              </h1>
+   114→   114→              <p className="mt-6 max-w-2xl text-balance text-lg leading-relaxed text-zinc-400 sm:text-xl">
+   115→   115→                它问的是：<b className="text-zinc-100">同一道光波的波前上，横向两点是否&ldquo;步调一致&rdquo;</b>。
+   116→   116→                这决定了光能不能发生干涉、能不能形成条纹。
+   117→   117→              </p>
+   118→   118→              <p className="mt-3 max-w-2xl text-sm leading-relaxed text-zinc-500">
+   119→   119→                还不熟悉&ldquo;波前&rdquo;这个术语？下面第一节动画先把它讲透。
+   120→   120→              </p>
+   121→   121→              <div className="mt-10 grid w-full max-w-4xl gap-4 sm:grid-cols-2">
+   122→   122→                <div className="rounded-2xl border border-emerald-500/30 bg-emerald-500/[0.07] p-5 text-left">
+   123→   123→                  <div className="flex items-center gap-2 font-semibold text-emerald-300">
+   124→   124→                    <Waves className="h-5 w-5" />
+   125→   125→                    有空间相干性
+   126→   126→                  </div>
+   127→   127→                  <p className="mt-2 text-sm leading-relaxed text-zinc-300">
+   128→   128→                    波前上任意两点的<b className="text-emerald-200">相位差恒定</b>——像阅兵队列一样整齐。
+   129→   129→                    后果：双缝干涉条纹清晰稳定，激光全息、干涉测量都靠它。
+   130→   130→                  </p>
+   131→   131→                </div>
+   132→   132→                <div className="rounded-2xl border border-rose-500/30 bg-rose-500/[0.07] p-5 text-left">
+   133→   133→                  <div className="flex items-center gap-2 font-semibold text-rose-300">
+   134→   134→                    <Shuffle className="h-5 w-5" />
+   135→   135→                    没有空间相干性
+   136→   136→                  </div>
+   137→   137→                  <p className="mt-2 text-sm leading-relaxed text-zinc-300">
+   138→   138→                    横向两点的<b className="text-rose-200">相位差随机乱跳</b>——各点&ldquo;各跳各的&rdquo;。
+   139→   139→                    后果：干涉条纹被平均抹平，阳光、灯光照双缝看不到条纹。
+   140→   140→                  </p>
+   141→   141→                </div>
+   142→   142→              </div>
+   143→   143→              <div className="mt-10 flex flex-wrap items-center justify-center gap-3">
+   144→   144→                <Button
+   145→   145→                  asChild
+   146→   146→                  className="bg-emerald-600 px-6 text-white hover:bg-emerald-500"
+   147→   147→                >
+   148→   148→                  <a href="#demo">观看核心动画</a>
+   149→   149→                </Button>
+   150→   150→                <Button
+   151→   151→                  asChild
+   152→   152→                  variant="outline"
+   153→   153→                  className="border-white/15 bg-transparent px-6 text-zinc-200 hover:bg-white/10 hover:text-white"
+   154→   154→                >
+   155→   155→                  <a href="#lab">直接看双缝实验</a>
+   156→   156→                </Button>
+   157→   157→              </div>
+   158→   158→            </FadeIn>
+   159→   159→            <div className="mt-14 flex justify-center text-zinc-600">
+   160→   160→              <ChevronDown className="h-6 w-6 animate-bounce" aria-hidden />
+   161→   161→            </div>
+   162→   162→          </div>
+   163→   163→        </section>
+   164→   164→
+   165→   165→        {/* ---------------- 什么是波前 ---------------- */}
+   166→   166→        <section id="wavefront" className="scroll-mt-20 border-t border-white/5 py-16 sm:py-20">
+   167→   167→          <div className="mx-auto max-w-6xl px-4 sm:px-6">
+   168→   168→            <FadeIn>
+   169→   169→              <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">
+   170→   170→                先回答：波前是什么？
+   171→   171→              </h2>
+   172→   172→              <p className="mt-3 max-w-3xl leading-relaxed text-zinc-400">
+   173→   173→                整页都在说&ldquo;波前上的两点&rdquo;，它到底是什么？一句话：
+   174→   174→                <b className="text-zinc-200">同一时刻，振动相位完全相同的点连成的面，叫波前（wavefront），也叫等相位面</b>。
+   175→   175→                先看 2D 剖面动画把它画出来——再看 3D 视角：点光源的光其实是向四面八方传播的。
+   176→   176→              </p>
+   177→   177→            </FadeIn>
+   178→   178→            <FadeIn delay={0.1} className="mt-8">
+   179→   179→              <WavefrontIntro />
+   180→   180→            </FadeIn>
+   181→   181→            <FadeIn delay={0.08} className="mt-6">
+   182→   182→              <Wavefront3D />
+   183→   183→            </FadeIn>
+   184→   184→            <FadeIn delay={0.06} className="mt-6">
+   185→   185→              <Alert className="border-emerald-500/30 bg-emerald-500/[0.07] text-zinc-200">
+   186→   186→                <Activity className="h-5 w-5 !text-emerald-400" />
+   187→   187→                <AlertTitle className="text-sm font-semibold text-emerald-200">
+   188→   188→                  追问：传播中为什么会&ldquo;一明一暗&rdquo;？光是一段一段发出的吗？
+   189→   189→                </AlertTitle>
+   190→   190→                <AlertDescription className="mt-1.5 space-y-1.5 text-sm leading-relaxed text-zinc-300">
+   191→   191→                  <p>
+   192→   192→                    <b className="text-zinc-100">① 明暗环只是&ldquo;相位快照&rdquo;。</b>
+   193→   193→                    动画把每一点的瞬时电场直接画成亮度：波峰最亮、波谷最暗。同一瞬间，不同距离的点处在振荡的不同阶段，
+   194→   194→                    于是环环相间——相邻亮环间距 = λ。
+   195→   195→                  </p>
+   196→   196→                  <p>
+   197→   197→                    <b className="text-zinc-100">② 光不是一段一段发出的。</b>
+   198→   198→                    光源在连续振荡，波场在时间与空间上都连续。波前壳之间并非&ldquo;空档&rdquo;——那里的点只是此刻不在峰值，
+   199→   199→                    下一刻就到；发射与传播全程没有间歇。
+   200→   200→                  </p>
+   201→   201→                  <p>
+   202→   202→                    <b className="text-zinc-100">③ 变亮与变暗都是连续渐变。</b>
+   203→   203→                    盯住任一点（用上面 3D 动画的&ldquo;探针示波器&rdquo;），它的电场沿正弦曲线平滑摆动，最亮与最暗之间无任何跳变。
+   204→   204→                    真实光每秒振荡约 5×10<sup>14</sup> 次，眼睛只能看到时间平均后的恒定亮度——动画相当于把这一切放慢了万亿倍，
+   205→   205→                    让你直接看到&ldquo;场&rdquo;本身。
+   206→   206→                  </p>
+   207→   207→                  <p className="text-zinc-400">
+   208→   208→                    顺带一提：若你指的是&ldquo;越传越暗&rdquo;——那是能量守恒：同样的能量摊在越来越大的球面上，
+   209→   209→                    强度 ∝ 1/r<sup>2</sup>（3D 动画里球壳越远越淡，画的就是它）。
+   210→   210→                  </p>
+   211→   211→                </AlertDescription>
+   212→   212→              </Alert>
+   213→   213→            </FadeIn>
+   214→   214→            <FadeIn delay={0.05} className="mt-6">
+   215→   215→              <div className="grid gap-4 md:grid-cols-3">
+   216→   216→                {[
+   217→   217→                  {
+   218→   218→                    icon: <CircleDot className="h-4.5 w-4.5 shrink-0 text-emerald-400" />,
+   219→   219→                    title: "定义：等相位面",
+   220→   220→                    text: (
+   221→   221→                      <>
+   222→   222→                        <b className="text-zinc-100">同一时刻、相位相同的所有点</b>连成的曲面。
+   223→   223→                        点光源的波前是一族同心球面；剖面图里就是同心圆（3D 动画可旋转确认）。亮环（波峰）是波前，
+   224→   224→                        暗环（波谷）也是——相位相同即可，不一定是峰。
+   225→   225→                      </>
+   226→   226→                    ),
+   227→   227→                  },
+   228→   228→                  {
+   229→   229→                    icon: <MoveHorizontal className="h-4.5 w-4.5 shrink-0 text-amber-400" />,
+   230→   230→                    title: "形状与光线",
+   231→   231→                    text: (
+   232→   232→                      <>
+   233→   233→                        波前描绘光的&ldquo;队形&rdquo;，<b className="text-zinc-100">光线永远与波前垂直</b>。
+   234→   234→                        离点光源足够远，球面波的局部近似为平面，就是平面波（平行光）；
+   235→   235→                        激光束可近似看作平面波。动画里可切换&ldquo;平面波视角&rdquo;。
+   236→   236→                      </>
+   237→   237→                    ),
+   238→   238→                  },
+   239→   239→                  {
+   240→   240→                    icon: <Ruler className="h-4.5 w-4.5 shrink-0 text-teal-300" />,
+   241→   241→                    title: "λ 与运动",
+   242→   242→                    text: (
+   243→   243→                      <>
+   244→   244→                        相邻波前相距一个<b className="text-zinc-100">波长 λ</b>，整个波前以波速 v 向前推进。
+   245→   245→                        空间相干性问的就是：这张&ldquo;队形图&rdquo;上，横向不同的点能否保持固定相位差
+   246→   246→                        ——这正是下一个动画的主题。
+   247→   247→                      </>
+   248→   248→                    ),
+   249→   249→                  },
+   250→   250→                ].map((it, i) => (
+   251→   251→                  <div
+   252→   252→                    key={it.title}
+   253→   253→                    className="flex gap-3 rounded-xl border border-white/5 bg-white/[0.03] p-4"
+   254→   254→                  >
+   255→   255→                    <span className="mt-0.5">{it.icon}</span>
+   256→   256→                    <div className="text-sm leading-relaxed text-zinc-400">
+   257→   257→                      <div className="mb-1 font-semibold text-zinc-100">{it.title}</div>
+   258→   258→                      <p>{it.text}</p>
+   259→   259→                    </div>
+   260→   260→                  </div>
+   261→   261→                ))}
+   262→   262→              </div>
+   263→   263→            </FadeIn>
+   264→   264→          </div>
+   265→   265→        </section>
+   266→   266→
+   267→   267→        {/* ---------------- 核心概念 ---------------- */}
+   268→   268→        <section id="concept" className="scroll-mt-20 border-t border-white/5 py-16 sm:py-20">
+   269→   269→          <div className="mx-auto max-w-6xl px-4 sm:px-6">
+   270→   270→            <FadeIn>
+   271→   271→              <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">
+   272→   272→                先把概念说清楚
+   273→   273→              </h2>
+   274→   274→              <p className="mt-3 max-w-3xl leading-relaxed text-zinc-400">
+   275→   275→                &ldquo;相干&rdquo;听起来玄，其实就是一个问题：<b className="text-zinc-200">两束（或两处的）光，相位之间有没有稳定的关系？</b>
+   276→   276→                下面三张卡片是从定义到判据到成因的完整逻辑链。
+   277→   277→              </p>
+   278→   278→            </FadeIn>
+   279→   279→            <div className="mt-8 grid gap-4 md:grid-cols-3">
+   280→   280→              {[
+   281→   281→                {
+   282→   282→                  icon: <Aperture className="h-5 w-5 text-emerald-400" />,
+   283→   283→                  title: "相干性：光场各部分的“默契”",
+   284→   284→                  body: (
+   285→   285→                    <>
+   286→   286→                      相干性衡量光场不同部分之间<b className="text-zinc-100">相位关系是否稳定</b>。
+   287→   287→                      它有两个维度：垂直于传播方向（横向）的叫<b className="text-emerald-300">空间相干性</b>，
+   288→   288→                      沿传播方向（纵向）的叫<b className="text-amber-300">时间相干性</b>。本页主角是前者。
+   289→   289→                    </>
+   290→   290→                  ),
+   291→   291→                },
+   292→   292→                {
+   293→   293→                  icon: <MoveVertical className="h-5 w-5 text-emerald-400" />,
+   294→   294→                  title: "判据：波前上两点的 Δφ(t)",
+   295→   295→                  body: (
+   296→   296→                    <>
+   297→   297→                      在同一波前上取两点 P₁、P₂，长期观察它们的相位差：
+   298→   298→                      <b className="text-zinc-100">恒定 → 空间相干；随机变化 → 不相干</b>。
+   299→   299→                      相干宽度 ℓ 内的点保持默契，超出 ℓ 就&ldquo;翻脸不认&rdquo;。
+   300→   300→                    </>
+   301→   301→                  ),
+   302→   302→                },
+   303→   303→                {
+   304→   304→                  icon: <Lightbulb className="h-5 w-5 text-emerald-400" />,
+   305→   305→                  title: "谁说了算：光源的角尺寸 θ",
+   306→   306→                  body: (
+   307→   307→                    <>
+   308→   308→                      光源上每个点都独立发光、初相位随机。光源又小又远（θ 小）时，各点波前几乎重合，波前整齐；
+   309→   309→                      光源一大，各点波前互相错叠，波前被&ldquo;搅乱&rdquo;。定量规律：
+   310→   310→                      <b className="text-zinc-100">相干宽度 ℓ ≈ λ / θ</b>。
+   311→   311→                    </>
+   312→   312→                  ),
+   313→   313→                },
+   314→   314→              ].map((c, i) => (
+   315→   315→                <FadeIn key={c.title} delay={i * 0.08}>
+   316→   316→                  <Card className="h-full border-white/10 bg-zinc-900/60">
+   317→   317→                    <CardHeader className="pb-3">
+   318→   318→                      <CardTitle className="flex items-center gap-2.5 text-base font-semibold">
+   319→   319→                        {c.icon}
+   320→   320→                        {c.title}
+   321→   321→                      </CardTitle>
+   322→   322→                    </CardHeader>
+   323→   323→                    <CardContent>
+   324→   324→                      <CardDescription className="text-sm leading-relaxed text-zinc-400">
+   325→   325→                        {c.body}
+   326→   326→                      </CardDescription>
+   327→   327→                    </CardContent>
+   328→   328→                  </Card>
+   329→   329→                </FadeIn>
+   330→   330→              ))}
+   331→   331→            </div>
+   332→   332→          </div>
+   333→   333→        </section>
+   334→   334→
+   335→   335→        {/* ---------------- 核心动画 ---------------- */}
+   336→   336→        <section id="demo" className="scroll-mt-20 border-t border-white/5 py-16 sm:py-20">
+   337→   337→          <div className="mx-auto max-w-6xl px-4 sm:px-6">
+   338→   338→            <FadeIn>
+   339→   339→              <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">
+   340→   340→                亲眼所见：波前的&ldquo;队形&rdquo;
+   341→   341→              </h2>
+   342→   342→              <p className="mt-3 max-w-3xl leading-relaxed text-zinc-400">
+   343→   343→                这个动画直接演示&ldquo;有&rdquo;与&ldquo;没有&rdquo;的区别。
+   344→   344→                看什么？<b className="text-zinc-200">下方那条 Δφ 曲线</b>：它是平直的，说明两点相干；
+   345→   345→                它乱跳，说明不相干。动画①里你已经见过：单个点源时无论探针放哪，
+   346→   346→                Δφ 都恒定；这里把&ldquo;点源变成扩展光源&rdquo;，看 Δφ 如何被搅乱。
+   347→   347→              </p>
+   348→   348→            </FadeIn>
+   349→   349→            <FadeIn delay={0.1} className="mt-8">
+   350→   350→              <WavefrontCoherence />
+   351→   351→            </FadeIn>
+   352→   352→            <FadeIn delay={0.05} className="mt-6">
+   353→   353→              <div className="grid gap-4 md:grid-cols-3">
+   354→   354→                {[
+   355→   355→                  {
+   356→   356→                    icon: <Hand className="h-4.5 w-4.5 shrink-0 text-emerald-400" />,
+   357→   357→                    text: (
+   358→   358→                      <>
+   359→   359→                        <b className="text-zinc-100">有空间相干性（θ 小）</b>：波前像阅兵队列——横向各点步调一致，
+   360→   360→                        无论 P₁、P₂ 隔多远，Δφ 都是一条平线。
+   361→   361→                      </>
+   362→   362→                    ),
+   363→   363→                  },
+   364→   364→                  {
+   365→   365→                    icon: <Shuffle className="h-4.5 w-4.5 shrink-0 text-rose-400" />,
+   366→   366→                    text: (
+   367→   367→                      <>
+   368→   368→                        <b className="text-zinc-100">没有（θ 大）</b>：波前碎成一片，各点&ldquo;各跳各的&rdquo;，
+   369→   369→                        Δφ 随机乱跳，两条振动曲线毫无关联。
+   370→   370→                      </>
+   371→   371→                    ),
+   372→   372→                  },
+   373→   373→                  {
+   374→   374→                    icon: <Ruler className="h-4.5 w-4.5 shrink-0 text-amber-400" />,
+   375→   375→                    text: (
+   376→   376→                      <>
+   377→   377→                        <b className="text-zinc-100">部分相干</b>：间距小于相干宽度 ℓ 的两点仍有默契（P₂ 在绿带内），
+   378→   378→                        拖出 ℓ 之外默契就消失。θ 越大，ℓ 越小（ℓ ∝ 1/θ）。
+   379→   379→                      </>
+   380→   380→                    ),
+   381→   381→                  },
+   382→   382→                ].map((it, i) => (
+   383→   383→                  <div
+   384→   384→                    key={i}
+   385→   385→                    className="flex gap-3 rounded-xl border border-white/5 bg-white/[0.03] p-4 text-sm leading-relaxed text-zinc-400"
+   386→   386→                  >
+   387→   387→                    <span className="mt-0.5">{it.icon}</span>
+   388→   388→                    <p>{it.text}</p>
+   389→   389→                  </div>
+   390→   390→                ))}
+   391→   391→              </div>
+   392→   392→            </FadeIn>
+   393→   393→          </div>
+   394→   394→        </section>
+   395→   395→
+   396→   396→        {/* ---------------- 双缝实验 ---------------- */}
+   397→   397→        <section id="lab" className="scroll-mt-20 border-t border-white/5 py-16 sm:py-20">
+   398→   398→          <div className="mx-auto max-w-6xl px-4 sm:px-6">
+   399→   399→            <FadeIn>
+   400→   400→              <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">
+   401→   401→                检验场：杨氏双缝
+   402→   402→              </h2>
+   403→   403→              <p className="mt-3 max-w-3xl leading-relaxed text-zinc-400">
+   404→   404→                空间相干性最经典的&ldquo;试金石&rdquo;。双缝要产生条纹，前提是
+   405→   405→                <b className="text-zinc-200">到达 S₁、S₂ 两缝的光彼此相干</b>。
+   406→   406→                下面拖动滑杆，亲手把条纹&ldquo;杀死&rdquo;再&ldquo;救活&rdquo;。
+   407→   407→              </p>
+   408→   408→            </FadeIn>
+   409→   409→            <FadeIn delay={0.1} className="mt-8">
+   410→   410→              <DoubleSlitLab />
+   411→   411→            </FadeIn>
+   412→   412→            <FadeIn delay={0.05} className="mt-6">
+   413→   413→              <div className="grid gap-4 md:grid-cols-2">
+   414→   414→                <Alert className="border-emerald-500/30 bg-emerald-500/[0.07] text-zinc-200">
+   415→   415→                  <FlaskConical className="h-5 w-5 !text-emerald-400" />
+   416→   416→                  <AlertTitle className="text-sm font-semibold text-emerald-200">
+   417→   417→                    为什么条纹会被抹平？
+   418→   418→                  </AlertTitle>
+   419→   419→                  <AlertDescription className="mt-1.5 text-sm leading-relaxed text-zinc-300">
+   420→   420→                    每个源点<b className="text-zinc-100">自己</b>都能产生一套清晰条纹——只是彼此错位。
+   421→   421→                    光源越宽，错位越大；无数套错位条纹叠加平均，光屏上只剩一片均匀亮。
+   422→   422→                    勾选动画里的&ldquo;显示每个源点各自的条纹&rdquo;可以亲眼确认这一点。
+   423→   423→                  </AlertDescription>
+   424→   424→                </Alert>
+   425→   425→                <Alert className="border-amber-500/30 bg-amber-500/[0.07] text-zinc-200">
+   426→   426→                  <Sun className="h-5 w-5 !text-amber-400" />
+   427→   427→                  <AlertTitle className="text-sm font-semibold text-amber-200">
+   428→   428→                    历史小注：杨的&ldquo;整流&rdquo;智慧
+   429→   429→                  </AlertTitle>
+   430→   430→                  <AlertDescription className="mt-1.5 text-sm leading-relaxed text-zinc-300">
+   431→   431→                    1801 年托马斯·杨用阳光做双缝实验时，先让阳光穿过一个<b className="text-zinc-100">单孔</b>再照双缝——
+   432→   432→                    单孔把扩展光源&ldquo;过滤&rdquo;成近似点源，等于人工制造空间相干性。
+   433→   433→                    规律：缝间距越大，越依赖光源够小够远（角尺寸小）。
+   434→   434→                  </AlertDescription>
+   435→   435→                </Alert>
+   436→   436→              </div>
+   437→   437→            </FadeIn>
+   438→   438→          </div>
+   439→   439→        </section>
+   440→   440→
+   441→   441→        {/* ---------------- 定量与实例 ---------------- */}
+   442→   442→        <section id="quant" className="scroll-mt-20 border-t border-white/5 py-16 sm:py-20">
+   443→   443→          <div className="mx-auto max-w-6xl px-4 sm:px-6">
+   444→   444→            <FadeIn>
+   445→   445→              <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">
+   446→   446→                定量：相干宽度有多大？
+   447→   447→              </h2>
+   448→   448→            </FadeIn>
+   449→   449→            <FadeIn delay={0.05} className="mt-8">
+   450→   450→              <div className="rounded-2xl border border-emerald-500/25 bg-gradient-to-br from-emerald-500/[0.08] to-transparent p-6 sm:p-8">
+   451→   451→                <div className="flex flex-col items-center gap-2 text-center">
+   452→   452→                  <div className="font-mono text-3xl font-bold text-emerald-300 sm:text-4xl">
+   453→   453→                    ℓ<sub className="text-lg">coh</sub> ≈ λ / θ
+   454→   454→                  </div>
+   455→   455→                  <p className="max-w-2xl text-sm leading-relaxed text-zinc-400">
+   456→   456→                    λ 是波长，θ 是光源的<b className="text-zinc-200">角尺寸</b>（从双缝处看光源张开的角度）。
+   457→   457→                    均匀圆盘光源则更精确地写作 ℓ ≈ 1.22 λ / θ。光源越小越远（θ 越小），波前上&ldquo;守规矩&rdquo;的范围就越大。
+   458→   458→                  </p>
+   459→   459→                </div>
+   460→   460→              </div>
+   461→   461→            </FadeIn>
+   462→   462→            <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+   463→   463→              {[
+   464→   464→                {
+   465→   465→                  icon: <Zap className="h-5 w-5 text-emerald-400" />,
+   466→   466→                  title: "激光笔",
+   467→   467→                  sub: "θ → 0",
+   468→   468→                  body: (
+   469→   469→                    <>
+   470→   470→                      单横模激光近似&ldquo;整面波前一起振动&rdquo;，相干宽度覆盖整个光束截面。
+   471→   471→                      所以随手拿激光笔照双缝，墙上就能看到清晰条纹。
+   472→   472→                    </>
+   473→   473→                  ),
+   474→   474→                },
+   475→   475→                {
+   476→   476→                  icon: <Sun className="h-5 w-5 text-amber-400" />,
+   477→   477→                  title: "太阳光",
+   478→   478→                  sub: "θ ≈ 0.53° → ℓ ≈ 0.06 mm",
+   479→   479→                  body: (
+   480→   480→                    <>
+   481→   481→                      以 λ = 550nm 计算，太阳的相干宽度只有约 60μm——和头发丝直径差不多。
+   482→   482→                      双缝间距必须比头发丝还细才可能看到条纹，所以杨必须先用单孔滤光。
+   483→   483→                    </>
+   484→   484→                  ),
+   485→   485→                },
+   486→   486→                {
+   487→   487→                  icon: <Star className="h-5 w-5 text-teal-300" />,
+   488→   488→                  title: "恒星光（参宿四）",
+   489→   489→                  sub: "θ ≈ 0.047″ → ℓ ≈ 2~3 m",
+   490→   490→                  body: (
+   491→   491→                    <>
+   492→   492→                      恒星角尺寸小到万分之二度。星光飞数百光年到达地球仍高度空间相干——
+   493→   493→                      1920 年迈克耳孙正是用 6.1m 基线干涉仪首次测出恒星直径。
+   494→   494→                    </>
+   495→   495→                  ),
+   496→   496→                },
+   497→   497→                {
+   498→   498→                  icon: <Ruler className="h-5 w-5 text-emerald-400" />,
+   499→   499→                  title: "如何“制造”相干性",
+   500→   500→                  sub: "三板斧",
+   501→   501→                  body: (
+   502→   502→                    <>
+   503→   503→                      ① 用激光；② 用针孔把扩展光源限制成点源；
+   504→   504→                      ③ 离光源远一点（角尺寸变小）。反过来，把缝间距缩到相干宽度以内，也能找回条纹。
+   505→   505→                    </>
+   506→   506→                  ),
+   507→   507→                },
+   508→   508→              ].map((c, i) => (
+   509→   509→                <FadeIn key={c.title} delay={i * 0.06}>
+   510→   510→                  <Card className="h-full border-white/10 bg-zinc-900/60">
+   511→   511→                    <CardHeader className="pb-3">
+   512→   512→                      <CardTitle className="flex items-center gap-2.5 text-base font-semibold">
+   513→   513→                        {c.icon}
+   514→   514→                        <span>{c.title}</span>
+   515→   515→                      </CardTitle>
+   516→   516→                      <div className="pt-0.5 font-mono text-xs text-emerald-300/80">{c.sub}</div>
+   517→   517→                    </CardHeader>
+   518→   518→                    <CardContent>
+   519→   519→                      <CardDescription className="text-sm leading-relaxed text-zinc-400">
+   520→   520→                        {c.body}
+   521→   521→                      </CardDescription>
+   522→   522→                    </CardContent>
+   523→   523→                  </Card>
+   524→   524→                </FadeIn>
+   525→   525→              ))}
+   526→   526→            </div>
+   527→   527→            <FadeIn delay={0.1} className="mt-6">
+   528→   528→              <div className="flex flex-col gap-4 rounded-2xl border border-white/10 bg-zinc-900/60 p-6 sm:flex-row sm:items-center">
+   529→   529→                <div className="flex items-center gap-3 sm:w-56">
+   530→   530→                  <ScanLine className="h-8 w-8 shrink-0 text-emerald-400" />
+   531→   531→                  <div className="font-semibold text-zinc-100">
+   532→   532→                    生活判据：看&ldquo;散斑&rdquo;
+   533→   533→                    <div className="mt-0.5 text-xs font-normal text-zinc-500">一眼分辨相干光</div>
+   534→   534→                  </div>
+   535→   535→                </div>
+   536→   536→                <p className="flex-1 text-sm leading-relaxed text-zinc-400">
+   537→   537→                  激光照在粗糙墙面（白纸、墙壁）上，会看到<b className="text-zinc-200">颗粒状的明暗斑点（散斑）</b>；
+   538→   538→                  手电筒或阳光照同一面墙，只有均匀的光斑。因为粗糙面上各点反射的激光彼此相干、随机干涉；
+   539→   539→                  非相干光则自我平均，把斑点&ldquo;洗&rdquo;掉了。<b className="text-zinc-200">有散斑 = 高度空间（+时间）相干。</b>
+   540→   540→                </p>
+   541→   541→              </div>
+   542→   542→            </FadeIn>
+   543→   543→          </div>
+   544→   544→        </section>
+   545→   545→
+   546→   546→        {/* ---------------- 对比总结 ---------------- */}
+   547→   547→        <section id="compare" className="scroll-mt-20 border-t border-white/5 py-16 sm:py-20">
+   548→   548→          <div className="mx-auto max-w-6xl px-4 sm:px-6">
+   549→   549→            <FadeIn>
+   550→   550→              <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">
+   551→   551→                一张表总结：有 vs 没有
+   552→   552→              </h2>
+   553→   553→            </FadeIn>
+   554→   554→            <FadeIn delay={0.08} className="mt-8">
+   555→   555→              <div className="overflow-hidden rounded-2xl border border-white/10 bg-zinc-900/60">
+   556→   556→                <Table>
+   557→   557→                  <TableHeader>
+   558→   558→                    <TableRow className="border-white/10 hover:bg-transparent">
+   559→   559→                      <TableHead className="w-32 text-zinc-400">维度</TableHead>
+   560→   560→                      <TableHead className="text-emerald-300">有空间相干性</TableHead>
+   561→   561→                      <TableHead className="text-rose-300">没有空间相干性</TableHead>
+   562→   562→                    </TableRow>
+   563→   563→                  </TableHeader>
+   564→   564→                  <TableBody className="[&_td]:border-white/5">
+   565→   565→                    {[
+   566→   566→                      ["波前形态", "平直整齐，像阅兵队列", "破碎杂乱，像散场人群"],
+   567→   567→                      [
+   568→   568→                        "横向两点相位差 Δφ",
+   569→   569→                        "恒定不变（Δφ(t) 是平线）",
+   570→   570→                        "随机快速跳变（Δφ(t) 乱跳）",
+   571→   571→                      ],
+   572→   572→                      ["双缝干涉", "清晰、稳定的条纹", "条纹被抹平，只剩均匀亮度"],
+   573→   573→                      ["典型光源", "激光、恒星光、经针孔过滤的光", "太阳、白炽灯、大面积 LED"],
+   574→   574→                      ["相干宽度 ℓ", "大（激光覆盖全光束；恒星光可达数米）", "小（太阳光约 0.06mm）"],
+   575→   575→                      ["如何获得", "缩小角尺寸：用激光 / 加针孔 / 拉远距离", "——（扩展光源天然如此）"],
+   576→   576→                    ].map((row) => (
+   577→   577→                      <TableRow key={row[0]} className="border-white/5">
+   578→   578→                        <TableCell className="font-medium text-zinc-300">{row[0]}</TableCell>
+   579→   579→                        <TableCell className="text-zinc-300">{row[1]}</TableCell>
+   580→   580→                        <TableCell className="text-zinc-300">{row[2]}</TableCell>
+   581→   581→                      </TableRow>
+   582→   582→                    ))}
+   583→   583→                  </TableBody>
+   584→   584→                </Table>
+   585→   585→              </div>
+   586→   586→            </FadeIn>
+   587→   587→            <div className="mt-6 grid gap-4 md:grid-cols-2">
+   588→   588→              <FadeIn delay={0.05}>
+   589→   589→                <Card className="h-full border-emerald-500/20 bg-emerald-500/[0.05]">
+   590→   590→                  <CardHeader className="pb-3">
+   591→   591→                    <CardTitle className="flex items-center gap-2.5 text-base font-semibold">
+   592→   592→                      <MoveVertical className="h-5 w-5 text-emerald-400" />
+   593→   593→                      空间相干性（横向）
+   594→   594→                    </CardTitle>
+   595→   595→                  </CardHeader>
+   596→   596→                  <CardContent>
+   597→   597→                    <CardDescription className="text-sm leading-relaxed text-zinc-400">
+   598→   598→                      同一时刻、<b className="text-zinc-200">垂直于传播方向</b>的两点之间是否保持固定相位关系。
+   599→   599→                      由<b className="text-zinc-200">光源角尺寸</b>决定，度量为相干宽度 ℓ ≈ λ/θ。
+   600→   600→                      本页动画②演示的就是它。
+   601→   601→                    </CardDescription>
+   602→   602→                  </CardContent>
+   603→   603→                </Card>
+   604→   604→              </FadeIn>
+   605→   605→              <FadeIn delay={0.12}>
+   606→   606→                <Card className="h-full border-amber-500/20 bg-amber-500/[0.05]">
+   607→   607→                  <CardHeader className="pb-3">
+   608→   608→                    <CardTitle className="flex items-center gap-2.5 text-base font-semibold">
+   609→   609→                      <Timer className="h-5 w-5 text-amber-400" />
+   610→   610→                      时间相干性（纵向）
+   611→   611→                    </CardTitle>
+   612→   612→                  </CardHeader>
+   613→   613→                  <CardContent>
+   614→   614→                    <CardDescription className="text-sm leading-relaxed text-zinc-400">
+   615→   615→                      同一点<b className="text-zinc-200">先后两个时刻</b>（或沿传播方向相距两点）之间的相位关系。
+   616→   616→                      由<b className="text-zinc-200">光谱宽度</b>决定，度量为相干长度，约 λ²/Δλ。
+   617→   617→                      单频激光可达公里级，白光只有微米级。激光两种相干性都高，阳光两种都低。
+   618→   618→                    </CardDescription>
+   619→   619→                  </CardContent>
+   620→   620→                </Card>
+   621→   621→              </FadeIn>
+   622→   622→            </div>
+   623→   623→            <FadeIn delay={0.15} className="mt-6">
+   624→   624→              <Alert className="border-emerald-500/30 bg-emerald-500/[0.08]">
+   625→   625→                <LineChart className="h-5 w-5 !text-emerald-400" />
+   626→   626→                <AlertTitle className="text-sm font-semibold text-emerald-200">
+   627→   627→                  一句话带走
+   628→   628→                </AlertTitle>
+   629→   629→                <AlertDescription className="mt-1.5 text-sm leading-relaxed text-zinc-300">
+   630→   630→                  <b className="text-zinc-100">有空间相干性</b> = 波前上各点&ldquo;步调一致&rdquo;、相位差恒定 → 能形成稳定干涉条纹；
+   631→   631→                  <b className="text-zinc-100">没有</b> = 各点&ldquo;各跳各的&rdquo;、相位差随机 → 条纹被抹平。
+   632→   632→                  一切成败只取决于光源的角尺寸：<b className="font-mono text-emerald-300">ℓ ≈ λ/θ</b>。
+   633→   633→                </AlertDescription>
+   634→   634→              </Alert>
+   635→   635→            </FadeIn>
+   636→   636→          </div>
+   637→   637→        </section>
+   638→   638→      </main>
+   639→   639→
+   640→   640→      {/* ---------------- 页脚 ---------------- */}
+   641→   641→      <footer className="mt-auto border-t border-white/5 bg-zinc-950">
+   642→   642→        <div className="mx-auto max-w-6xl px-4 py-8 text-center sm:px-6">
+   643→   643→          <p className="text-sm text-zinc-400">
+   644→   644→            <Waves className="mr-1.5 inline h-4 w-4 text-emerald-400" />
+   645→   645→            波前 = 等相位面。空间相干性：有 = 波前步调一致 → 条纹清晰；没有 = 各自为战 → 条纹消失。
+   646→   646→          </p>
+   647→   647→          <p className="mt-2 text-xs text-zinc-600">
+   648→   648→            波动光学交互式讲解 · 所有动画在浏览器中实时计算渲染
+   649→   649→          </p>
+   650→   650→        </div>
+   651→   651→      </footer>
+   652→   652→    </div>
+   653→   653→  )
+   654→   654→}
+   655→   655→

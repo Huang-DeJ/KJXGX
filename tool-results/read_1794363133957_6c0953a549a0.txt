@@ -1,0 +1,913 @@
+     1→"use client"
+     2→
+     3→import { useEffect, useRef, useState } from "react"
+     4→import * as THREE from "three"
+     5→import { Button } from "@/components/ui/button"
+     6→import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+     7→import { Label } from "@/components/ui/label"
+     8→import { Slider } from "@/components/ui/slider"
+     9→import { Switch } from "@/components/ui/switch"
+    10→import {
+    11→  Activity,
+    12→  MousePointer2,
+    13→  Pause,
+    14→  Play,
+    15→  Plus,
+    16→  Minus,
+    17→  RotateCcw,
+    18→} from "lucide-react"
+    19→import { buildDivergingLut32, drawFieldScope, classifyPhase, makeGlowTexture } from "./wave-kit"
+    20→
+    21→/* ---------------- 物理常量（与动画①同节奏） ---------------- */
+    22→const LAMBDA = 1.4 // 波长（场景单位）
+    23→const K3 = (2 * Math.PI) / LAMBDA
+    24→const PERIOD = 1.5 // 振荡周期（s）
+    25→const OMEGA3 = (2 * Math.PI) / PERIOD
+    26→const V3 = LAMBDA / PERIOD
+    27→const SHELL_GAP = LAMBDA / 2 // 峰壳与谷壳相距 λ/2
+    28→const N_SHELLS = 16
+    29→const R_SHELL_MAX = 9.9
+    30→const TEX = 384 // 地面剖面纹理分辨率
+    31→const FLOOR_SIZE = 16
+    32→const PX2U = FLOOR_SIZE / TEX
+    33→const FENCE_SEGS = 150
+    34→const FENCE_R0 = 0.55
+    35→const FENCE_R1 = 8.8
+    36→const FENCE_H = 1.5 // 场值→围栏高度
+    37→const LOOK = new THREE.Vector3(0, 0.9, 0)
+    38→const UP = new THREE.Vector3(0, 1, 0)
+    39→
+    40→/* 红 = 波峰壳（+E₀），蓝 = 波谷壳（−E₀） */
+    41→const PEAK_COLOR = new THREE.Color(1.0, 0.42, 0.24)
+    42→const TROUGH_COLOR = new THREE.Color(0.31, 0.5, 1.0)
+    43→
+    44→/* 球壳着色器：Fresnel 边缘发光（厚实的肥皂泡质感）+ 可剖切 */
+    45→const shellVert = `
+    46→#include <clipping_planes_pars_vertex>
+    47→varying vec3 vN;
+    48→varying vec3 vW;
+    49→void main() {
+    50→  vec4 wp = modelMatrix * vec4(position, 1.0);
+    51→  vW = wp.xyz;
+    52→  vN = normalize(mat3(modelMatrix) * normal);
+    53→  vec4 mvPosition = viewMatrix * wp;
+    54→  #include <clipping_planes_vertex>
+    55→  gl_Position = projectionMatrix * mvPosition;
+    56→}`
+    57→
+    58→const shellFrag = `
+    59→#include <clipping_planes_pars_fragment>
+    60→uniform vec3 uColor;
+    61→uniform float uAlpha;
+    62→uniform vec3 uCam;
+    63→varying vec3 vN;
+    64→varying vec3 vW;
+    65→void main() {
+    66→  #include <clipping_planes_fragment>
+    67→  vec3 V = normalize(uCam - vW);
+    68→  float ndv = abs(dot(V, normalize(vN)));
+    69→  float rim = pow(1.0 - ndv, 1.8);
+    70→  float a = uAlpha * (0.12 + 1.5 * rim);
+    71→  gl_FragColor = vec4(uColor, clamp(a, 0.0, 0.95));
+    72→}`
+    73→
+    74→/* 横幅配色（按事件类别） */
+    75→const TONE: Record<string, string> = {
+    76→  peak: " border border-orange-400/50 bg-orange-400/15 text-orange-200",
+    77→  zero: " border border-sky-300/50 bg-sky-300/15 text-sky-100",
+    78→  trough: " border border-blue-400/50 bg-blue-400/15 text-blue-200",
+    79→  rise: " border border-white/10 bg-white/5 text-zinc-300",
+    80→  fall: " border border-white/10 bg-white/5 text-zinc-300",
+    81→}
+    82→
+    83→const DIV_LUT = buildDivergingLut32()
+    84→
+    85→/* ---------------- 组件 ---------------- */
+    86→export function Wavefront3D() {
+    87→  const canvasRef = useRef<HTMLCanvasElement | null>(null)
+    88→  const scopeRef = useRef<HTMLCanvasElement | null>(null)
+    89→  const probeTagRef = useRef<HTMLDivElement | null>(null)
+    90→  const probeBadgeRef = useRef<HTMLSpanElement | null>(null)
+    91→  const probeERef = useRef<HTMLSpanElement | null>(null)
+    92→  const probeBarRef = useRef<HTMLDivElement | null>(null)
+    93→  const [paused, setPaused] = useState(false)
+    94→  const [showFloor, setShowFloor] = useState(true)
+    95→  const [cutaway, setCutaway] = useState(true)
+    96→  const [fenceOn, setFenceOn] = useState(true)
+    97→  const [autoOrbit, setAutoOrbit] = useState(true)
+    98→  const [dragged, setDragged] = useState(false)
+    99→  const [glError, setGlError] = useState(false)
+   100→  const [probeDist, setProbeDist] = useState(3.2)
+   101→
+   102→  const st = useRef<{
+   103→    t: number
+   104→    last: number
+   105→    paused: boolean
+   106→    showFloor: boolean
+   107→    cutaway: boolean
+   108→    fenceOn: boolean
+   109→    probeDist: number
+   110→    visible: boolean
+   111→    autoRotate: boolean
+   112→    theta: number
+   113→    phi: number
+   114→    radius: number
+   115→    dragging: boolean
+   116→    px: number
+   117→    py: number
+   118→    floorMesh: THREE.Mesh | null
+   119→    fenceGroup: THREE.Group | null
+   120→  }>({
+   121→    t: 0,
+   122→    last: 0,
+   123→    paused: false,
+   124→    showFloor: true,
+   125→    cutaway: true,
+   126→    fenceOn: true,
+   127→    probeDist: 3.2,
+   128→    visible: true,
+   129→    autoRotate: true,
+   130→    theta: -0.65,
+   131→    phi: 0.4,
+   132→    radius: 12.6,
+   133→    dragging: false,
+   134→    px: 0,
+   135→    py: 0,
+   136→    floorMesh: null,
+   137→    fenceGroup: null,
+   138→  })
+   139→
+   140→  useEffect(() => {
+   141→    st.current.paused = paused
+   142→  }, [paused])
+   143→  useEffect(() => {
+   144→    st.current.showFloor = showFloor
+   145→    if (st.current.floorMesh) st.current.floorMesh.visible = showFloor
+   146→  }, [showFloor])
+   147→  useEffect(() => {
+   148→    st.current.cutaway = cutaway
+   149→  }, [cutaway])
+   150→  useEffect(() => {
+   151→    st.current.fenceOn = fenceOn
+   152→    if (st.current.fenceGroup) st.current.fenceGroup.visible = fenceOn
+   153→  }, [fenceOn])
+   154→  useEffect(() => {
+   155→    st.current.autoRotate = autoOrbit
+   156→  }, [autoOrbit])
+   157→  useEffect(() => {
+   158→    st.current.probeDist = probeDist
+   159→  }, [probeDist])
+   160→
+   161→  useEffect(() => {
+   162→    const canvas = canvasRef.current
+   163→    if (!canvas) return
+   164→    let renderer: THREE.WebGLRenderer
+   165→    try {
+   166→      renderer = new THREE.WebGLRenderer({
+   167→        canvas,
+   168→        antialias: true,
+   169→        alpha: false,
+   170→        powerPreference: "high-performance",
+   171→      })
+   172→    } catch {
+   173→      queueMicrotask(() => setGlError(true))
+   174→      return
+   175→    }
+   176→    renderer.setClearColor(0x070b09, 1)
+   177→    renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1))
+   178→    renderer.localClippingEnabled = true
+   179→
+   180→    const scene = new THREE.Scene()
+   181→    scene.fog = new THREE.FogExp2(0x070b09, 0.03)
+   182→
+   183→    const camera = new THREE.PerspectiveCamera(45, 1, 0.1, 220)
+   184→
+   185→    const disposables: Array<{ dispose: () => void }> = []
+   186→
+   187→    /* ---- 地面剖面：红=正、蓝=负，叠加 λ 刻度环 ---- */
+   188→    const texCanvas = document.createElement("canvas")
+   189→    texCanvas.width = TEX
+   190→    texCanvas.height = TEX
+   191→    const tctx = texCanvas.getContext("2d")
+   192→    if (!tctx) {
+   193→      queueMicrotask(() => setGlError(true))
+   194→      return
+   195→    }
+   196→    const floorImg = tctx.createImageData(TEX, TEX)
+   197→    const floorBuf = new Uint32Array(floorImg.data.buffer)
+   198→    const floorTex = new THREE.CanvasTexture(texCanvas)
+   199→    floorTex.minFilter = THREE.LinearFilter
+   200→    floorTex.generateMipmaps = false
+   201→    disposables.push(floorTex)
+   202→
+   203→    const drawFloor = (t: number) => {
+   204→      const half = TEX / 2
+   205→      let i = 0
+   206→      for (let py = 0; py < TEX; py++) {
+   207→        const dy = (py - half) * PX2U
+   208→        const dy2 = dy * dy
+   209→        for (let px = 0; px < TEX; px++, i++) {
+   210→          const dx = (px - half) * PX2U
+   211→          const r = Math.sqrt(dx * dx + dy2)
+   212→          let v = 0
+   213→          if (r < 8) {
+   214→            const edge = r > 6.3 ? 1 - Math.min(1, (r - 6.3) / 1.6) : 1
+   215→            /* 振幅 ∝ 1/r（真空只稀释不损耗） */
+   216→            const amp = Math.min(1, 2.1 / Math.max(r, 0.35)) * edge
+   217→            v = Math.cos(K3 * r - OMEGA3 * t) * amp
+   218→          }
+   219→          floorBuf[i] = DIV_LUT[((v + 1) * 127.5) | 0]
+   220→        }
+   221→      }
+   222→      tctx.putImageData(floorImg, 0, 0)
+   223→      /* λ 刻度环 + 标注（比例尺：让“球有多大、跑多快”可衡量） */
+   224→      const cx = TEX / 2
+   225→      const cy = TEX / 2
+   226→      tctx.strokeStyle = "rgba(255,255,255,0.10)"
+   227→      tctx.setLineDash([4, 6])
+   228→      tctx.lineWidth = 1
+   229→      tctx.font = "10px ui-sans-serif, system-ui, sans-serif"
+   230→      tctx.fillStyle = "rgba(255,255,255,0.34)"
+   231→      tctx.textAlign = "left"
+   232→      for (let m = 1; m <= 7; m++) {
+   233→        const rr = (m * LAMBDA) / PX2U
+   234→        if (rr > TEX / 2 - 3) break
+   235→        tctx.beginPath()
+   236→        tctx.arc(cx, cy, rr, 0, Math.PI * 2)
+   237→        tctx.stroke()
+   238→        const ax = cx + Math.cos(-2.35) * rr
+   239→        const ay = cy + Math.sin(-2.35) * rr
+   240→        tctx.fillText(`${m}λ`, ax + 2, ay - 2)
+   241→      }
+   242→      tctx.setLineDash([])
+   243→      floorTex.needsUpdate = true
+   244→    }
+   245→
+   246→    const floorGeo = new THREE.PlaneGeometry(FLOOR_SIZE, FLOOR_SIZE)
+   247→    floorGeo.rotateX(-Math.PI / 2)
+   248→    const floorMat = new THREE.MeshBasicMaterial({ map: floorTex })
+   249→    disposables.push(floorGeo, floorMat)
+   250→    const floorMesh = new THREE.Mesh(floorGeo, floorMat)
+   251→    floorMesh.renderOrder = 0
+   252→    scene.add(floorMesh)
+   253→    st.current.floorMesh = floorMesh
+   254→
+   255→    /* ---- 剖切平面：永远朝向相机剖开，直接看见内部嵌套层 ---- */
+   256→    const cutPlane = new THREE.Plane(new THREE.Vector3(0, 0, -1), 1e6)
+   257→
+   258→    /* ---- 红峰蓝谷的膨胀球壳（Fresnel 边缘发光 + 可剖切） ---- */
+   259→    const shellGeo = new THREE.SphereGeometry(1, 48, 30)
+   260→    disposables.push(shellGeo)
+   261→    const shells: THREE.Mesh[] = []
+   262→    const shellMats: THREE.ShaderMaterial[] = []
+   263→    for (let n = 0; n < N_SHELLS; n++) {
+   264→      const mat = new THREE.ShaderMaterial({
+   265→        vertexShader: shellVert,
+   266→        fragmentShader: shellFrag,
+   267→        uniforms: {
+   268→          uColor: { value: (n % 2 === 0 ? PEAK_COLOR : TROUGH_COLOR).clone() },
+   269→          uAlpha: { value: 0.4 },
+   270→          uCam: { value: new THREE.Vector3() },
+   271→        },
+   272→        transparent: true,
+   273→        blending: THREE.AdditiveBlending,
+   274→        depthWrite: false,
+   275→        side: THREE.DoubleSide,
+   276→        clipping: true,
+   277→        clippingPlanes: [cutPlane],
+   278→      })
+   279→      disposables.push(mat)
+   280→      const m = new THREE.Mesh(shellGeo, mat)
+   281→      m.renderOrder = 2
+   282→      m.visible = false
+   283→      scene.add(m)
+   284→      shells.push(m)
+   285→      shellMats.push(mat)
+   286→    }
+   287→
+   288→    /* ---- 点光源 + 暖色光晕 ---- */
+   289→    const srcGeo = new THREE.SphereGeometry(0.09, 16, 12)
+   290→    const srcMat = new THREE.MeshBasicMaterial({ color: 0xfff3e4 })
+   291→    disposables.push(srcGeo, srcMat)
+   292→    const source = new THREE.Mesh(srcGeo, srcMat)
+   293→    scene.add(source)
+   294→
+   295→    const glowTex = makeGlowTexture()
+   296→    disposables.push(glowTex)
+   297→    const glowMat = new THREE.SpriteMaterial({
+   298→      map: glowTex,
+   299→      blending: THREE.AdditiveBlending,
+   300→      depthWrite: false,
+   301→      transparent: true,
+   302→    })
+   303→    disposables.push(glowMat)
+   304→    const glow = new THREE.Sprite(glowMat)
+   305→    glow.scale.setScalar(1.7)
+   306→    scene.add(glow)
+   307→
+   308→    /* ---- 立体围栏：沿一条半径把场值 E 立起来（正红负蓝），探针骑在栏顶 ---- */
+   309→    const fenceGroup = new THREE.Group()
+   310→    scene.add(fenceGroup)
+   311→    st.current.fenceGroup = fenceGroup
+   312→
+   313→    const fenceVertCount = (FENCE_SEGS + 1) * 2
+   314→    const fencePosArr = new Float32Array(fenceVertCount * 3)
+   315→    const fenceColArr = new Float32Array(fenceVertCount * 3)
+   316→    const fenceIdx: number[] = []
+   317→    for (let i = 0; i < FENCE_SEGS; i++) {
+   318→      const b0 = i * 2
+   319→      const t0 = i * 2 + 1
+   320→      const b1 = (i + 1) * 2
+   321→      const t1 = (i + 1) * 2 + 1
+   322→      fenceIdx.push(b0, t0, b1, t0, t1, b1)
+   323→    }
+   324→    const fenceGeo = new THREE.BufferGeometry()
+   325→    const fencePosAttr = new THREE.BufferAttribute(fencePosArr, 3)
+   326→    const fenceColAttr = new THREE.BufferAttribute(fenceColArr, 3)
+   327→    fencePosAttr.setUsage(THREE.DynamicDrawUsage)
+   328→    fenceColAttr.setUsage(THREE.DynamicDrawUsage)
+   329→    fenceGeo.setAttribute("position", fencePosAttr)
+   330→    fenceGeo.setAttribute("color", fenceColAttr)
+   331→    fenceGeo.setIndex(fenceIdx)
+   332→    const fenceMat = new THREE.MeshBasicMaterial({
+   333→      vertexColors: true,
+   334→      transparent: true,
+   335→      opacity: 0.6,
+   336→      blending: THREE.AdditiveBlending,
+   337→      depthWrite: false,
+   338→      side: THREE.DoubleSide,
+   339→    })
+   340→    disposables.push(fenceGeo, fenceMat)
+   341→    fenceGroup.add(new THREE.Mesh(fenceGeo, fenceMat))
+   342→
+   343→    const topLinePos = new Float32Array((FENCE_SEGS + 1) * 3)
+   344→    const topLineGeo = new THREE.BufferGeometry()
+   345→    const topLineAttr = new THREE.BufferAttribute(topLinePos, 3)
+   346→    topLineAttr.setUsage(THREE.DynamicDrawUsage)
+   347→    topLineGeo.setAttribute("position", topLineAttr)
+   348→    const topLineMat = new THREE.LineBasicMaterial({
+   349→      color: 0xffffff,
+   350→      transparent: true,
+   351→      opacity: 0.55,
+   352→      blending: THREE.AdditiveBlending,
+   353→      depthWrite: false,
+   354→    })
+   355→    disposables.push(topLineGeo, topLineMat)
+   356→    fenceGroup.add(new THREE.Line(topLineGeo, topLineMat))
+   357→
+   358→    /* 探针：骑在围栏顶上的小球（高度 = 此刻场值） */
+   359→    const probeGeo = new THREE.SphereGeometry(0.12, 16, 12)
+   360→    const probeMat = new THREE.MeshBasicMaterial({ color: 0xfff3e8 })
+   361→    disposables.push(probeGeo, probeMat)
+   362→    const probe = new THREE.Mesh(probeGeo, probeMat)
+   363→    probe.renderOrder = 4
+   364→    fenceGroup.add(probe)
+   365→
+   366→    const probeGlowMat = new THREE.SpriteMaterial({
+   367→      map: glowTex,
+   368→      blending: THREE.AdditiveBlending,
+   369→      depthWrite: false,
+   370→      transparent: true,
+   371→      opacity: 0.5,
+   372→    })
+   373→    disposables.push(probeGlowMat)
+   374→    const probeGlow = new THREE.Sprite(probeGlowMat)
+   375→    probeGlow.scale.setScalar(0.55)
+   376→    probeGlow.renderOrder = 4
+   377→    fenceGroup.add(probeGlow)
+   378→
+   379→    const guidePos = new Float32Array(6)
+   380→    const guideGeo = new THREE.BufferGeometry()
+   381→    const guideAttr = new THREE.BufferAttribute(guidePos, 3)
+   382→    guideAttr.setUsage(THREE.DynamicDrawUsage)
+   383→    guideGeo.setAttribute("position", guideAttr)
+   384→    const guideMat = new THREE.LineBasicMaterial({
+   385→      color: 0xffffff,
+   386→      transparent: true,
+   387→      opacity: 0.4,
+   388→    })
+   389→    disposables.push(guideGeo, guideMat)
+   390→    fenceGroup.add(new THREE.Line(guideGeo, guideMat))
+   391→
+   392→    const footGeo = new THREE.RingGeometry(0.14, 0.2, 32)
+   393→    footGeo.rotateX(-Math.PI / 2)
+   394→    const footMat = new THREE.MeshBasicMaterial({
+   395→      color: 0xffffff,
+   396→      transparent: true,
+   397→      opacity: 0.35,
+   398→      side: THREE.DoubleSide,
+   399→    })
+   400→    disposables.push(footGeo, footMat)
+   401→    const foot = new THREE.Mesh(footGeo, footMat)
+   402→    foot.position.y = 0.015
+   403→    fenceGroup.add(foot)
+   404→
+   405→    /* 围栏 + 探针逐帧更新 */
+   406→    const updateFence = (t: number, rp: number) => {
+   407→      for (let i = 0; i <= FENCE_SEGS; i++) {
+   408→        const r = FENCE_R0 + (i / FENCE_SEGS) * (FENCE_R1 - FENCE_R0)
+   409→        const edge = r > 7.6 ? Math.max(0, 1 - (r - 7.6) / 1.2) : 1
+   410→        const v =
+   411→          Math.cos(K3 * r - OMEGA3 * t) * Math.min(1, 1.7 / Math.max(r, 0.5)) * edge
+   412→        const y = v * FENCE_H
+   413→        const bi = i * 2 * 3
+   414→        const ti = (i * 2 + 1) * 3
+   415→        fencePosArr[bi] = r
+   416→        fencePosArr[bi + 1] = 0
+   417→        fencePosArr[bi + 2] = 0
+   418→        fencePosArr[ti] = r
+   419→        fencePosArr[ti + 1] = y
+   420→        fencePosArr[ti + 2] = 0
+   421→        const m = 0.25 + 0.75 * Math.min(1, Math.abs(v) * 1.4)
+   422→        fenceColArr[bi] = 0.1
+   423→        fenceColArr[bi + 1] = 0.1
+   424→        fenceColArr[bi + 2] = 0.12
+   425→        if (v >= 0) {
+   426→          fenceColArr[ti] = m
+   427→          fenceColArr[ti + 1] = 0.42 * m
+   428→          fenceColArr[ti + 2] = 0.25 * m
+   429→        } else {
+   430→          fenceColArr[ti] = 0.32 * m
+   431→          fenceColArr[ti + 1] = 0.55 * m
+   432→          fenceColArr[ti + 2] = m
+   433→        }
+   434→        topLinePos[i * 3] = r
+   435→        topLinePos[i * 3 + 1] = y
+   436→        topLinePos[i * 3 + 2] = 0
+   437→      }
+   438→      fencePosAttr.needsUpdate = true
+   439→      fenceColAttr.needsUpdate = true
+   440→      topLineAttr.needsUpdate = true
+   441→      /* 探针：固定半径处，高度 = 此刻场值（示波器画的正是它） */
+   442→      const vp =
+   443→        Math.cos(K3 * rp - OMEGA3 * t) * Math.min(1, 1.7 / Math.max(rp, 0.5))
+   444→      const yp = vp * FENCE_H
+   445→      probe.position.set(rp, yp, 0)
+   446→      probeGlow.position.copy(probe.position)
+   447→      guidePos[0] = rp
+   448→      guidePos[1] = 0
+   449→      guidePos[2] = 0
+   450→      guidePos[3] = rp
+   451→      guidePos[4] = yp
+   452→      guidePos[5] = 0
+   453→      guideAttr.needsUpdate = true
+   454→      foot.position.set(rp, 0.015, 0)
+   455→      return yp
+   456→    }
+   457→
+   458→    /* ---- 示波器 2D 画布 ---- */
+   459→    const scopeCanvas = scopeRef.current
+   460→
+   461→    /* ---- 尺寸自适应 ---- */
+   462→    let cw3 = 0
+   463→    let ch3 = 0
+   464→    const resize = () => {
+   465→      const w = Math.max(280, canvas.clientWidth)
+   466→      const h = Math.max(280, canvas.clientHeight)
+   467→      renderer.setSize(w, h, false)
+   468→      camera.aspect = w / h
+   469→      camera.updateProjectionMatrix()
+   470→      cw3 = canvas.clientWidth
+   471→      ch3 = canvas.clientHeight
+   472→    }
+   473→    resize()
+   474→    const ro = new ResizeObserver(resize)
+   475→    ro.observe(canvas)
+   476→    const io = new IntersectionObserver(
+   477→      (es) => {
+   478→        st.current.visible = es[0]?.isIntersecting ?? true
+   479→      },
+   480→      { threshold: 0.05 }
+   481→    )
+   482→    io.observe(canvas)
+   483→
+   484→    /* ---- 读数横幅 ---- */
+   485→    const updateReadouts = (eP: number, rising: boolean, pausedNow: boolean) => {
+   486→      const badge = probeBadgeRef.current
+   487→      if (badge) {
+   488→        const base =
+   489→          "inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-medium transition-colors"
+   490→        let txt: string
+   491→        let cls: string
+   492→        if (pausedNow) {
+   493→          txt = "已暂停"
+   494→          cls = " border border-white/10 bg-white/5 text-zinc-400"
+   495→        } else {
+   496→          const c = classifyPhase(eP, rising)
+   497→          txt = c.text
+   498→          cls = TONE[c.kind] ?? TONE.rise
+   499→        }
+   500→        if (badge.textContent !== txt) {
+   501→          badge.textContent = txt
+   502→          badge.className = base + cls
+   503→        }
+   504→      }
+   505→      if (probeERef.current) {
+   506→        probeERef.current.textContent =
+   507→          (eP >= 0 ? "+" : "−") + Math.abs(eP).toFixed(2)
+   508→      }
+   509→      if (probeBarRef.current) {
+   510→        probeBarRef.current.style.width = `${(((eP + 1) / 2) * 100).toFixed(1)}%`
+   511→      }
+   512→    }
+   513→
+   514→    const tmpV = new THREE.Vector3()
+   515→    const dVec = new THREE.Vector3()
+   516→    const fwd = new THREE.Vector3()
+   517→    const rightV = new THREE.Vector3()
+   518→
+   519→    let raf = 0
+   520→    const frame = (now: number) => {
+   521→      raf = requestAnimationFrame(frame)
+   522→      const s = st.current
+   523→      const dt = Math.min(0.05, (now - s.last) / 1000 || 0.016)
+   524→      s.last = now
+   525→      if (!s.visible) return
+   526→      if (!s.paused) {
+   527→        s.t += dt
+   528→        if (s.autoRotate && !s.dragging) s.theta += 0.1 * dt
+   529→      }
+   530→
+   531→      /* 相机 */
+   532→      camera.position.set(
+   533→        s.radius * Math.cos(s.phi) * Math.cos(s.theta),
+   534→        s.radius * Math.sin(s.phi),
+   535→        s.radius * Math.cos(s.phi) * Math.sin(s.theta)
+   536→      )
+   537→      camera.lookAt(LOOK)
+   538→
+   539→      /* 剖切：朝向相机剖开近半，看进内部（关掉则完全不剖） */
+   540→      if (s.cutaway) {
+   541→        dVec.copy(camera.position).sub(LOOK).normalize()
+   542→        cutPlane.normal.copy(dVec).negate()
+   543→        cutPlane.constant = dVec.dot(LOOK)
+   544→      } else {
+   545→        cutPlane.constant = 1e6
+   546→      }
+   547→
+   548→      /* 围栏始终正对相机（转到大画面里总能读出完整正弦） */
+   549→      fwd.copy(LOOK).sub(camera.position).normalize()
+   550→      rightV.crossVectors(fwd, UP)
+   551→      rightV.y = 0
+   552→      if (rightV.lengthSq() < 1e-6) rightV.set(1, 0, 0)
+   553→      rightV.normalize()
+   554→      fenceGroup.rotation.y = Math.atan2(-rightV.z, rightV.x)
+   555→
+   556→      /* 球壳：峰红 / 谷蓝，一层隔一层向外膨胀；越远越淡 = E₀ ∝ 1/r */
+   557→      const rBase = (V3 * s.t) % SHELL_GAP
+   558→      for (let n = 0; n < N_SHELLS; n++) {
+   559→        const r = rBase + n * SHELL_GAP + 0.001
+   560→        const m = shells[n]
+   561→        if (r < 0.07 || r > R_SHELL_MAX) {
+   562→          m.visible = false
+   563→          continue
+   564→        }
+   565→        m.visible = true
+   566→        m.scale.setScalar(r)
+   567→        const mat = shellMats[n]
+   568→        mat.uniforms.uAlpha.value = Math.min(0.5, 0.85 / Math.max(r, 0.8))
+   569→        mat.uniforms.uCam.value.copy(camera.position)
+   570→      }
+   571→
+   572→      if (s.showFloor) drawFloor(s.t)
+   573→
+   574→      const dP = s.probeDist
+   575→      const yp = updateFence(s.t, dP)
+   576→
+   577→      renderer.render(scene, camera)
+   578→
+   579→      /* 示波器 + 读数 */
+   580→      const phiP = K3 * dP - OMEGA3 * s.t
+   581→      const eP = Math.cos(phiP)
+   582→      const rising = Math.sin(phiP) > 0
+   583→      if (scopeCanvas)
+   584→        drawFieldScope(scopeCanvas, {
+   585→          tNow: s.t,
+   586→          dist: dP,
+   587→          K: K3,
+   588→          omega: OMEGA3,
+   589→          period: PERIOD,
+   590→          paused: s.paused,
+   591→        })
+   592→      updateReadouts(eP, rising, s.paused)
+   593→
+   594→      /* 探针标签跟随投影 */
+   595→      const tag = probeTagRef.current
+   596→      if (tag && cw3 > 0 && ch3 > 0) {
+   597→        if (!s.fenceOn) {
+   598→          tag.style.opacity = "0"
+   599→        } else {
+   600→          probe.getWorldPosition(tmpV).project(camera)
+   601→          tag.style.transform = `translate(${((tmpV.x * 0.5 + 0.5) * cw3).toFixed(1)}px, ${(
+   602→            (-tmpV.y * 0.5 + 0.5) * ch3 -
+   603→            18
+   604→          ).toFixed(1)}px)`
+   605→          tag.style.opacity = tmpV.z < 1 ? "1" : "0"
+   606→        }
+   607→      }
+   608→
+   609→      /* 自检钩子（供自动化验证） */
+   610→      ;(window as unknown as { __w3d?: object }).__w3d = {
+   611→        t: s.t,
+   612→        E: eP,
+   613→        d: dP,
+   614→        probeY: yp,
+   615→        theta: s.theta,
+   616→        radius: s.radius,
+   617→        auto: s.autoRotate,
+   618→        cutaway: s.cutaway,
+   619→        fence: s.fenceOn,
+   620→      }
+   621→    }
+   622→    raf = requestAnimationFrame(frame)
+   623→
+   624→    return () => {
+   625→      cancelAnimationFrame(raf)
+   626→      ro.disconnect()
+   627→      io.disconnect()
+   628→      delete (window as unknown as { __w3d?: object }).__w3d
+   629→      for (const d of disposables) d.dispose()
+   630→      renderer.dispose()
+   631→    }
+   632→  }, [])
+   633→
+   634→  /* ---- 交互：拖动旋转 ---- */
+   635→  const onPointerDown = (e: React.PointerEvent<HTMLCanvasElement>) => {
+   636→    const s = st.current
+   637→    s.dragging = true
+   638→    s.px = e.clientX
+   639→    s.py = e.clientY
+   640→    s.autoRotate = false
+   641→    setAutoOrbit(false)
+   642→    if (!dragged) setDragged(true)
+   643→    e.currentTarget.setPointerCapture(e.pointerId)
+   644→  }
+   645→  const onPointerMove = (e: React.PointerEvent<HTMLCanvasElement>) => {
+   646→    const s = st.current
+   647→    if (!s.dragging) return
+   648→    const dx = e.clientX - s.px
+   649→    const dy = e.clientY - s.py
+   650→    s.px = e.clientX
+   651→    s.py = e.clientY
+   652→    s.theta -= dx * 0.0062
+   653→    s.phi = Math.min(1.32, Math.max(0.05, s.phi + dy * 0.0048))
+   654→  }
+   655→  const onPointerUp = (e: React.PointerEvent<HTMLCanvasElement>) => {
+   656→    st.current.dragging = false
+   657→    e.currentTarget.style.cursor = "grab"
+   658→  }
+   659→
+   660→  const zoom = (f: number) => {
+   661→    const s = st.current
+   662→    s.radius = Math.min(24, Math.max(7, s.radius * f))
+   663→  }
+   664→  const resetView = () => {
+   665→    const s = st.current
+   666→    s.theta = -0.65
+   667→    s.phi = 0.4
+   668→    s.radius = 12.6
+   669→    s.autoRotate = true
+   670→    setAutoOrbit(true)
+   671→  }
+   672→
+   673→  return (
+   674→    <Card className="overflow-hidden border-white/10 bg-zinc-900/60 shadow-2xl shadow-orange-950/30">
+   675→      <CardHeader className="pb-4">
+   676→        <div className="flex flex-wrap items-start justify-between gap-3">
+   677→          <div className="max-w-2xl">
+   678→            <CardTitle className="flex items-center gap-2 text-lg font-semibold text-zinc-100 sm:text-xl">
+   679→              <span className="inline-block h-2 w-2 rounded-full bg-red-400" />
+   680→              动画 ①·3D · 剖开看球面波：红峰蓝谷，向四面八方跑
+   681→            </CardTitle>
+   682→            <CardDescription className="mt-1.5 text-sm leading-relaxed text-zinc-400">
+   683→              真正的点光源向<b className="text-zinc-200">四面八方</b>发光。这里把整串球壳
+   684→              <b className="text-zinc-200">剖开一角</b>直接看进内部：
+   685→              <b className="text-orange-300">红壳 = 波峰（E = +E<sub>0</sub>）</b>，
+   686→              <b className="text-blue-300">蓝壳 = 波谷（E = −E<sub>0</sub>）</b>，
+   687→              一层隔一层、以同一速度向外膨胀（相邻同色壳相距 λ，红蓝相邻相距 λ/2）；
+   688→              越远越淡，是振幅按 <b className="text-zinc-200">1/r</b> 被摊薄（稀释，不是损耗）。
+   689→              地面剖面用同一套红蓝画正负；<b className="text-zinc-200">立体围栏</b>把一根半径上的场值
+   690→              <b className="text-zinc-200">立起来</b>——起伏的最高点永远落在红壳上、最低点落在蓝壳上：
+   691→              每根半径都是一条正弦。想看每层壳的剖面长什么样？可先玩页面更下方的
+   692→              <b className="text-zinc-200">『剖面立起来』</b>动画再回来。
+   693→            </CardDescription>
+   694→          </div>
+   695→          <Button
+   696→            size="sm"
+   697→            variant="outline"
+   698→            className="h-8 shrink-0 border-white/15 bg-transparent text-zinc-200 hover:bg-white/10 hover:text-white"
+   699→            onClick={() => setPaused((p) => !p)}
+   700→            aria-label={paused ? "播放" : "暂停"}
+   701→          >
+   702→            {paused ? <Play className="h-3.5 w-3.5" /> : <Pause className="h-3.5 w-3.5" />}
+   703→            {paused ? "播放" : "暂停"}
+   704→          </Button>
+   705→        </div>
+   706→      </CardHeader>
+   707→      <CardContent className="space-y-4">
+   708→        <div className="relative overflow-hidden rounded-xl border border-white/10 bg-black">
+   709→          <canvas
+   710→            ref={canvasRef}
+   711→            className="block h-[340px] w-full cursor-grab touch-pan-y sm:h-[440px]"
+   712→            onPointerDown={onPointerDown}
+   713→            onPointerMove={onPointerMove}
+   714→            onPointerUp={onPointerUp}
+   715→            onPointerCancel={onPointerUp}
+   716→          />
+   717→          {!glError && (
+   718→            <div
+   719→              ref={probeTagRef}
+   720→              className="pointer-events-none absolute left-0 top-0 rounded-full border border-white/25 bg-black/60 px-1.5 py-0.5 text-[10px] leading-none text-zinc-100 backdrop-blur-sm"
+   721→            >
+   722→              探针
+   723→            </div>
+   724→          )}
+   725→          {glError ? (
+   726→            <div className="absolute inset-0 flex items-center justify-center bg-black/80 p-6 text-center text-sm text-zinc-400">
+   727→              当前环境不支持 WebGL，无法播放 3D 动画。可以回到动画 ① 用 2D 剖面理解同样的内容。
+   728→            </div>
+   729→          ) : (
+   730→            !dragged && (
+   731→              <div className="pointer-events-none absolute top-3 right-3 flex items-center gap-1.5 rounded-full bg-black/60 px-3 py-1.5 text-xs text-zinc-200/90 backdrop-blur-sm">
+   732→                <MousePointer2 className="h-3.5 w-3.5" />
+   733→                按住拖动 · 旋转 3D 视角
+   734→              </div>
+   735→            )
+   736→          )}
+   737→        </div>
+   738→
+   739→        <div className="flex flex-wrap items-center gap-x-5 gap-y-1.5 px-1 text-xs text-zinc-400">
+   740→          <span className="flex items-center gap-1.5">
+   741→            <span className="h-2.5 w-2.5 rounded-full bg-red-400" />
+   742→            红壳 = 波峰壳（E = +E<sub>0</sub>）
+   743→          </span>
+   744→          <span className="flex items-center gap-1.5">
+   745→            <span className="h-2.5 w-2.5 rounded-full bg-blue-400" />
+   746→            蓝壳 = 波谷壳（E = −E<sub>0</sub>）
+   747→          </span>
+   748→          <span className="flex items-center gap-1.5">
+   749→            <span className="h-2.5 w-2.5 rounded-full border border-white/20 bg-black" />
+   750→            黑环 = 过零（零壳经过处）
+   751→          </span>
+   752→          <span className="flex items-center gap-1.5">
+   753→            <span className="inline-block h-2.5 w-2.5 rotate-45 bg-gradient-to-br from-red-400 to-blue-500" />
+   754→            围栏 = 沿半径立起来的场值
+   755→          </span>
+   756→          <span className="flex items-center gap-1.5">
+   757→            <span className="h-2.5 w-2.5 rounded-full bg-gradient-to-br from-red-100 to-red-500" />
+   758→            探针 = 定点观察（读数见示波器）
+   759→          </span>
+   760→        </div>
+   761→
+   762→        <div className="flex flex-wrap items-center gap-x-5 gap-y-2 px-1">
+   763→          <div className="flex items-center gap-2">
+   764→            <Switch
+   765→              id="cut3d"
+   766→              checked={cutaway}
+   767→              onCheckedChange={setCutaway}
+   768→              aria-label="剖开球壳"
+   769→            />
+   770→            <Label htmlFor="cut3d" className="cursor-pointer text-xs text-zinc-400">
+   771→              剖开球壳（看内部）
+   772→            </Label>
+   773→          </div>
+   774→          <div className="flex items-center gap-2">
+   775→            <Switch
+   776→              id="floor3d"
+   777→              checked={showFloor}
+   778→              onCheckedChange={setShowFloor}
+   779→              aria-label="显示地面剖面"
+   780→            />
+   781→            <Label htmlFor="floor3d" className="cursor-pointer text-xs text-zinc-400">
+   782→              地面剖面（红=正 蓝=负）
+   783→            </Label>
+   784→          </div>
+   785→          <div className="flex items-center gap-2">
+   786→            <Switch
+   787→              id="fence3d"
+   788→              checked={fenceOn}
+   789→              onCheckedChange={setFenceOn}
+   790→              aria-label="显示立体围栏"
+   791→            />
+   792→            <Label htmlFor="fence3d" className="cursor-pointer text-xs text-zinc-400">
+   793→              立体围栏（半径上的正弦）
+   794→            </Label>
+   795→          </div>
+   796→          <div className="flex items-center gap-2">
+   797→            <Switch
+   798→              id="orbit3d"
+   799→              checked={autoOrbit}
+   800→              onCheckedChange={setAutoOrbit}
+   801→              aria-label="自动环绕"
+   802→            />
+   803→            <Label htmlFor="orbit3d" className="cursor-pointer text-xs text-zinc-400">
+   804→              自动环绕
+   805→            </Label>
+   806→          </div>
+   807→          <div className="flex items-center gap-2.5">
+   808→            <Label htmlFor="probe3d-dist" className="cursor-pointer text-xs text-zinc-400">
+   809→              探针距离
+   810→            </Label>
+   811→            <Slider
+   812→              id="probe3d-dist"
+   813→              value={[probeDist]}
+   814→              min={0.6}
+   815→              max={8.4}
+   816→              step={0.1}
+   817→              onValueChange={(v) => setProbeDist(v[0])}
+   818→              className="w-24 sm:w-28"
+   819→              aria-label="探针与光源的距离"
+   820→            />
+   821→            <span className="w-7 font-mono text-xs text-zinc-300/80">
+   822→              {probeDist.toFixed(1)}
+   823→            </span>
+   824→          </div>
+   825→          <div className="ml-auto flex items-center gap-1.5">
+   826→            <span className="mr-1 hidden text-xs text-zinc-500 sm:inline">缩放</span>
+   827→            <Button
+   828→              size="sm"
+   829→              variant="outline"
+   830→              className="h-8 w-8 border-white/15 bg-transparent p-0 text-zinc-200 hover:bg-white/10 hover:text-white"
+   831→              onClick={() => zoom(0.85)}
+   832→              aria-label="拉近"
+   833→            >
+   834→              <Plus className="h-3.5 w-3.5" />
+   835→            </Button>
+   836→            <Button
+   837→              size="sm"
+   838→              variant="outline"
+   839→              className="h-8 w-8 border-white/15 bg-transparent p-0 text-zinc-200 hover:bg-white/10 hover:text-white"
+   840→              onClick={() => zoom(1.18)}
+   841→              aria-label="拉远"
+   842→            >
+   843→              <Minus className="h-3.5 w-3.5" />
+   844→            </Button>
+   845→            <Button
+   846→              size="sm"
+   847→              variant="outline"
+   848→              className="h-8 border-white/15 bg-transparent px-2 text-zinc-200 hover:bg-white/10 hover:text-white"
+   849→              onClick={resetView}
+   850→            >
+   851→              <RotateCcw className="mr-1 h-3.5 w-3.5" />
+   852→              复位视角
+   853→            </Button>
+   854→          </div>
+   855→        </div>
+   856→
+   857→        {/* 探针示波器：定点视角——正弦从哪来、何时换向 */}
+   858→        <div className="rounded-xl border border-white/10 bg-black/40 p-3 sm:p-4">
+   859→          <div className="flex flex-wrap items-center justify-between gap-2">
+   860→            <span className="flex items-center gap-1.5 text-xs font-medium text-zinc-300">
+   861→              <Activity className="h-3.5 w-3.5 text-orange-300" />
+   862→              探针示波器 · 盯住一个点：峰、零、谷依次扫过它
+   863→            </span>
+   864→            <span
+   865→              ref={probeBadgeRef}
+   866→              className="inline-flex items-center gap-1 rounded-full border border-white/10 bg-white/5 px-2.5 py-0.5 text-[11px] font-medium text-zinc-400"
+   867→            >
+   868→              …
+   869→            </span>
+   870→          </div>
+   871→          <canvas
+   872→            ref={scopeRef}
+   873→            className="mt-2.5 block h-[96px] w-full"
+   874→            aria-label="探针处电场随时间变化的曲线，含峰零谷标记"
+   875→          />
+   876→          <div className="mt-2.5 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs text-zinc-400">
+   877→            <span>
+   878→              探针电场 E =
+   879→              <span ref={probeERef} className="ml-1 font-mono text-zinc-100">
+   880→                +1.00
+   881→              </span>
+   882→            </span>
+   883→            <div className="h-1.5 min-w-24 flex-1 overflow-hidden rounded-full bg-white/10">
+   884→              <div
+   885→                ref={probeBarRef}
+   886→                className="h-full rounded-full bg-gradient-to-r from-blue-500 via-zinc-500 to-red-400"
+   887→                style={{ width: "100%" }}
+   888→              />
+   889→            </div>
+   890→          </div>
+   891→          <p className="mt-2.5 text-xs leading-relaxed text-zinc-500">
+   892→            曲线走到<b className="text-orange-300">最高点</b> = 波峰壳扫过探针；
+   893→            <b className="text-zinc-200">穿过中线</b> = 零壳扫过（E = 0，
+   894→            <b className="text-zinc-200">电场在此切换方向</b>）；
+   895→            <b className="text-blue-300">最低点</b> = 波谷壳扫过。
+   896→            「峰→零→谷→零」每 T/4 换一班岗，读数 +E<sub>0</sub>→0→−E<sub>0</sub>→0
+   897→            ——你在定点看到的那条正弦，就是这支队伍依次碾过探针的记录（追问⑥的答案就在这行小字里）。
+   898→          </p>
+   899→        </div>
+   900→
+   901→        <p className="rounded-lg border border-white/5 bg-white/5 px-3 py-2 text-xs leading-relaxed text-zinc-300">
+   902→          三个要点：① 光不只在&ldquo;水面&rdquo;上跑——红峰壳与蓝谷壳一层隔一层，
+   903→          在<b className="text-zinc-100">每个方向</b>上以同一速度膨胀（相邻同色壳相距 λ，红蓝相邻相距 λ/2）；
+   904→          ② 沿<b className="text-zinc-100">任何一条穿过光源的直线</b>看（围栏画的正是这条线），
+   905→          场值都是一根正弦——最高点永远落在红壳上、最低点落在蓝壳上、过零落在两壳正中；
+   906→          ③ &ldquo;换向&rdquo;只发生在过零处：围栏从红区滑向蓝区，必须穿过高度为 0 的那一刻——
+   907→          那正是追问⑥要讲的&ldquo;零壳&rdquo;。
+   908→        </p>
+   909→      </CardContent>
+   910→    </Card>
+   911→  )
+   912→}
+   913→

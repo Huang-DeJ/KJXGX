@@ -37,11 +37,11 @@ jobs:
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
-      - name: Test Pages configuration
-        run: bun run test:pages
-
       - name: Build static site
         run: bun run build:pages
+
+      - name: Test Pages configuration and exported content
+        run: bun run test:pages
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3

@@ -41,6 +41,12 @@ const UP = new THREE.Vector3(0, 1, 0)
 const PEAK_COLOR = new THREE.Color(1.0, 0.42, 0.24)
 const TROUGH_COLOR = new THREE.Color(0.31, 0.5, 1.0)
 
+/* 源极性闪烁：源场 E(0,t) = cos(ωt)——红=正、蓝=负、暖白≈过零（与峰/谷壳同色系） */
+const SRC_WARM = new THREE.Color(1.0, 0.96, 0.88)
+const SRC_POS = new THREE.Color(1.0, 0.45, 0.28)
+const SRC_NEG = new THREE.Color(0.38, 0.58, 1.0)
+const tmpSrc = new THREE.Color()
+
 /* 球壳着色器：Fresnel 边缘发光（厚实的肥皂泡质感）+ 可剖切 */
 const shellVert = `
 #include <clipping_planes_pars_vertex>
@@ -553,8 +559,11 @@ export function Wavefront3D() {
       rightV.normalize()
       fenceGroup.rotation.y = Math.atan2(-rightV.z, rightV.x)
 
-      /* 球壳：峰红 / 谷蓝，一层隔一层向外膨胀；越远越淡 = E₀ ∝ 1/r */
+      /* 球壳：峰红 / 谷蓝，一层隔一层向外膨胀；越远越淡 = E₀ ∝ 1/r。
+         颜色按“此壳此刻的相位”实时判定：mesh 槽位每半周期换一次角色
+         （源每 T/2 吐出一层新壳），颜色必须跟着槽位走，不能跟着 mesh 序号走 */
       const rBase = (V3 * s.t) % SHELL_GAP
+      const qShell = Math.floor((V3 * s.t) / SHELL_GAP)
       for (let n = 0; n < N_SHELLS; n++) {
         const r = rBase + n * SHELL_GAP + 0.001
         const m = shells[n]
@@ -565,9 +574,22 @@ export function Wavefront3D() {
         m.visible = true
         m.scale.setScalar(r)
         const mat = shellMats[n]
+        mat.uniforms.uColor.value.copy(
+          (((n - qShell) % 2) + 2) % 2 === 0 ? PEAK_COLOR : TROUGH_COLOR
+        )
         mat.uniforms.uAlpha.value = Math.min(0.5, 0.85 / Math.max(r, 0.8))
         mat.uniforms.uCam.value.copy(camera.position)
       }
+
+      /* 源极性闪烁：源场 E(0,t) = cos(ωt)。
+         红=正（正吐红峰壳）、蓝=负（正吐蓝谷壳）、暖白≈过零（正吐零壳）；
+         闪到最红/最蓝的那一刻，恰有一层同色新壳从源诞生（此刻 rBase 同时归零） */
+      const eSrc = Math.cos(OMEGA3 * s.t)
+      if (eSrc >= 0) tmpSrc.copy(SRC_WARM).lerp(SRC_POS, Math.min(1, eSrc * 1.12))
+      else tmpSrc.copy(SRC_WARM).lerp(SRC_NEG, Math.min(1, -eSrc * 1.12))
+      srcMat.color.copy(tmpSrc)
+      glowMat.color.copy(tmpSrc)
+      glow.scale.setScalar(1.5 + 0.45 * Math.abs(eSrc))
 
       if (s.showFloor) drawFloor(s.t)
 
@@ -612,6 +634,9 @@ export function Wavefront3D() {
         E: eP,
         d: dP,
         probeY: yp,
+        Es: eSrc,
+        r0: shells[0].visible ? shells[0].scale.x : -1,
+        c0: shells[0].visible ? ((((0 - qShell) % 2) + 2) % 2 === 0 ? 1 : 0) : -1,
         theta: s.theta,
         radius: s.radius,
         auto: s.autoRotate,
@@ -688,7 +713,10 @@ export function Wavefront3D() {
               越远越淡，是振幅按 <b className="text-zinc-200">1/r</b> 被摊薄（稀释，不是损耗）。
               地面剖面用同一套红蓝画正负；<b className="text-zinc-200">立体围栏</b>把一根半径上的场值
               <b className="text-zinc-200">立起来</b>——起伏的最高点永远落在红壳上、最低点落在蓝壳上：
-              每根半径都是一条正弦。想看每层壳的剖面长什么样？可先玩页面更下方的
+              每根半径都是一条正弦。光源本身也按此刻的极性变色：
+              <b className="text-zinc-200">红 = 源场为正、蓝 = 为负、暖白 ≈ 过零</b>
+              ——它每闪到最红/最蓝的那一刻，恰有一层同色新壳从它身上诞生（追问⑧）。
+              想看每层壳的剖面长什么样？可先玩页面更下方的
               <b className="text-zinc-200">『剖面立起来』</b>动画再回来。
             </CardDescription>
           </div>
@@ -748,6 +776,10 @@ export function Wavefront3D() {
           <span className="flex items-center gap-1.5">
             <span className="h-2.5 w-2.5 rounded-full border border-white/20 bg-black" />
             黑环 = 过零（零壳经过处）
+          </span>
+          <span className="flex items-center gap-1.5">
+            <span className="h-2.5 w-2.5 rounded-full bg-gradient-to-r from-red-400 via-white to-blue-400" />
+            光源变色 = 源此刻极性（红=正 / 蓝=负 / 白≈过零）
           </span>
           <span className="flex items-center gap-1.5">
             <span className="inline-block h-2.5 w-2.5 rotate-45 bg-gradient-to-br from-red-400 to-blue-500" />
@@ -899,12 +931,14 @@ export function Wavefront3D() {
         </div>
 
         <p className="rounded-lg border border-white/5 bg-white/5 px-3 py-2 text-xs leading-relaxed text-zinc-300">
-          三个要点：① 光不只在&ldquo;水面&rdquo;上跑——红峰壳与蓝谷壳一层隔一层，
+          四个要点：① 光不只在&ldquo;水面&rdquo;上跑——红峰壳与蓝谷壳一层隔一层，
           在<b className="text-zinc-100">每个方向</b>上以同一速度膨胀（相邻同色壳相距 λ，红蓝相邻相距 λ/2）；
           ② 沿<b className="text-zinc-100">任何一条穿过光源的直线</b>看（围栏画的正是这条线），
           场值都是一根正弦——最高点永远落在红壳上、最低点落在蓝壳上、过零落在两壳正中；
           ③ &ldquo;换向&rdquo;只发生在过零处：围栏从红区滑向蓝区，必须穿过高度为 0 的那一刻——
-          那正是追问⑥要讲的&ldquo;零壳&rdquo;。
+          那正是追问⑥要讲的&ldquo;零壳&rdquo;；
+          ④ 光源自己的&ldquo;电极性&rdquo;也在翻：场值为正时它泛红、为负时泛蓝、过零时转暖白——
+          每翻到最红/最蓝，就有一层同色新壳从它身上诞生（追问⑧的答案就在光源的&ldquo;脸色&rdquo;里）。
         </p>
       </CardContent>
     </Card>

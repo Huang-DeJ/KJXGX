@@ -1,4 +1,5 @@
 import assert from "node:assert/strict"
+import { readFile } from "node:fs/promises"
 import test from "node:test"
 
 async function loadConfig(githubActions) {
@@ -36,4 +37,13 @@ test("local development remains available at the root path", async () => {
 
   assert.equal(config.output, "standalone")
   assert.equal(config.basePath, "")
+})
+
+test("static export includes the source-lab interaction", async () => {
+  const html = await readFile(new URL("../out/index.html", import.meta.url), "utf8")
+
+  assert.ok(
+    html.includes("动画 ④ · 走进光源内部"),
+    "exported home page is missing the source-lab heading",
+  )
 })

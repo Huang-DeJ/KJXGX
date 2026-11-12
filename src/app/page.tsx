@@ -1,6 +1,7 @@
 import { WavefrontIntro } from "@/components/coherence/wavefront-intro"
 import { Wavefront3D } from "@/components/coherence/wavefront-3d"
 import { WavefrontRelief } from "@/components/coherence/wave-relief"
+import { SourceLab } from "@/components/coherence/source-lab"
 import { WavefrontCoherence } from "@/components/coherence/wavefront-coherence"
 import { DoubleSlitLab } from "@/components/coherence/double-slit-lab"
 import { FadeIn } from "@/components/coherence/fade-in"
@@ -49,6 +50,9 @@ import {
   MoveHorizontal,
   ArrowLeftRight,
   Radio,
+  ArrowDownUp,
+  Atom,
+  Orbit,
 } from "lucide-react"
 
 const NAV_ITEMS = [
@@ -109,7 +113,7 @@ export default function Home() {
                 className="mb-5 border-emerald-500/40 bg-emerald-500/10 px-3 py-1 text-xs text-emerald-300"
               >
                 <Sparkles className="mr-1.5 h-3.5 w-3.5" />
-                五个交互动画 · 拖一拖就懂
+                六个交互动画 · 拖一拖就懂
               </Badge>
               <h1 className="bg-gradient-to-r from-emerald-300 via-teal-200 to-emerald-200 bg-clip-text text-5xl font-bold tracking-tight text-transparent sm:text-7xl">
                 空间相干性
@@ -176,7 +180,8 @@ export default function Home() {
                 整页都在说&ldquo;波前上的两点&rdquo;，它到底是什么？一句话：
                 <b className="text-zinc-200">同一时刻，振动相位完全相同的点连成的面，叫波前（wavefront），也叫等相位面</b>。
                 先看 2D 剖面动画把它画出来——再看 3D 视角：点光源的球面波被剖开一角，红峰蓝谷一圈圈向四面八方跑；
-                追问链的最下方，还有一张把剖面&ldquo;立起来&rdquo;的立体起伏动画——波峰、波谷、过零的零壳全都看得见，还能用探针盯住一个定点。
+                追问链的最下方，还有一张把剖面&ldquo;立起来&rdquo;的立体起伏动画——波峰、波谷、过零的零壳全都看得见，还能用探针盯住一个定点；
+                最后一张走进光源内部——天线、原子、激光，到底是谁在&ldquo;来回翻&rdquo;。
               </p>
             </FadeIn>
             <FadeIn delay={0.1} className="mt-8">
@@ -462,6 +467,152 @@ export default function Home() {
                     <b className="text-zinc-200">「零」打点处</b>曲线斜着穿过中线（过零换向、变化最快），
                     <b className="text-orange-300">「峰」</b>、<b className="text-blue-300">「谷」</b>打点处曲线恰好躺在最高/最低点（极值、暂稳）。
                     相对位置每变 λ/4，就有一班壳岗从探针身上换过去。
+                  </p>
+                </AlertDescription>
+              </Alert>
+            </FadeIn>
+            <FadeIn delay={0.07} className="mt-6">
+              <Alert className="border-cyan-500/30 bg-cyan-500/[0.07] text-zinc-200">
+                <ArrowDownUp className="h-5 w-5 !text-cyan-300" />
+                <AlertTitle className="text-sm font-semibold text-cyan-200">
+                  追问⑧：光源自己会&ldquo;变电极性&rdquo;吗？一直在正、负之间翻？
+                </AlertTitle>
+                <AlertDescription className="mt-1.5 space-y-1.5 text-sm leading-relaxed text-zinc-300">
+                  <p>
+                    <b className="text-zinc-100">会翻——但翻的是&ldquo;场值 E 的正负&rdquo;，不是&ldquo;电极&rdquo;。</b>
+                    光源不是带正负极的电池；它的&ldquo;极性&rdquo;就是此刻辐射出去的电场指向哪边。
+                    源处场值每半周期翻转一次：+E<sub>0</sub> → 0 → −E<sub>0</sub> → 0，
+                    翻向的那一刻 E = 0——恰是上一张卡片里&ldquo;零壳&rdquo;诞生的瞬间。
+                    两张 3D 动画里的光源如今就按此刻场值变色：
+                    <b className="text-orange-300">红 = 正</b>（正在吐红峰壳）、
+                    <b className="text-blue-300">蓝 = 负</b>（正在吐蓝谷壳）、
+                    <b className="text-zinc-200">暖白 ≈ 过零</b>（正在吐零壳）——
+                    它每次闪到最红/最蓝的那一刻，恰有一层同色新壳从它身上诞生。
+                  </p>
+                  <p>
+                    <b className="text-zinc-100">真实光源里，来回翻的实体是什么？</b>
+                    无线电发射天线最直观：电子被电流推着来回跑，天线两端轮流积聚正、负电荷
+                    ——&ldquo;两端电极互换&rdquo;在这里字面成立（100 MHz 天线每秒互换两亿次）。
+                    可见光光源没有导线：原子/分子靠<b className="text-zinc-200">电子云相对原子核左右偏移</b>
+                    ——瞬时偶极每半个光学周期换一次指向，
+                    每个原子就是一根原子尺度（~10<sup>−10</sup> m）的微型天线；
+                    灯丝、太阳是亿万个这样的微型天线在乱相位地同时发射。
+                    激光则靠受激辐射让原子们步调一致——最接近&ldquo;理想的一直从正翻到负的正弦源&rdquo;。
+                  </p>
+                  <p>
+                    <b className="text-zinc-100">&ldquo;一直&rdquo;翻吗？——理想源会，真实热光源要打个折。</b>
+                    理想单色点源（动画里那个）会：cos(ωt) 永远翻下去。
+                    太阳/灯泡的每次跃迁只发出一段有限长的波列：波列内部照样 +↔− 地翻，
+                    但每换一列，起始相位、摆动方向全部重新随机（相干时间从飞秒到纳秒不等）
+                    ——这正是早先&ldquo;瞬时振幅乱颤&rdquo;的根源。
+                    但有一条永远不变：<b className="text-zinc-200">长时间平均 E = 0，正负严格对称</b>
+                    ——光源整体不带净电荷，也绝不会发射&ldquo;净的正场&rdquo;或&ldquo;净的负场&rdquo;。
+                  </p>
+                  <p className="border-t border-white/10 pt-2 text-zinc-400">
+                    翻得有多快？可见光频率 ~4–7.5×10<sup>14</sup> Hz——源的极性每秒翻转约百万亿次。
+                    任何探测器都跟不上，只能记录时间平均（亮度 ∝ E<sub>0</sub><sup>2</sup>）
+                    ——所以你从不曾&ldquo;看见&rdquo;光在换向，只能靠干涉条纹间接读出它的相位。
+                    动画把周期放慢了约百万亿倍，你才看到光源&ldquo;变脸&rdquo;。
+                  </p>
+                </AlertDescription>
+              </Alert>
+            </FadeIn>
+            <FadeIn delay={0.06} className="mt-6">
+              <SourceLab />
+            </FadeIn>
+            <FadeIn delay={0.06} className="mt-6">
+              <Alert className="border-lime-500/30 bg-lime-500/[0.07] text-zinc-200">
+                <Atom className="h-5 w-5 !text-lime-300" />
+                <AlertTitle className="text-sm font-semibold text-lime-200">
+                  追问⑨：光源内部到底是什么在&ldquo;来回翻&rdquo;？天线、原子、激光有区别吗？
+                </AlertTitle>
+                <AlertDescription className="mt-1.5 space-y-1.5 text-sm leading-relaxed text-zinc-300">
+                  <p>
+                    <b className="text-zinc-100">① 无线电天线：翻的是&ldquo;电子群的位置&rdquo;——&ldquo;电极互换&rdquo;在这里字面成立。</b>
+                    发射机把电流顺着天线来回推：电子涌向上臂，上臂就多电子带负电、下臂缺电子带正电；
+                    半个周期后电子涌向下臂，两端的正负<b className="text-zinc-200">字面上互换</b>（100&nbsp;MHz 天线每秒互换 2 亿次）。
+                    注意两个&ldquo;最&rdquo;的错位（动画④天线上看得见）：电子全部挤到一端时（电荷最多），
+                    电流恰好为零；电子飞速路过中点时（电流最大），两端电荷恰好为零——
+                    <b className="text-zinc-200">源过零的那一瞬，正是零壳诞生的那一瞬</b>。
+                  </p>
+                  <p>
+                    <b className="text-zinc-100">② 原子/分子（灯丝、太阳）：翻的是&ldquo;电子云相对原子核的偏移&rdquo;。</b>
+                    原子没有导线，但激发态的电子云会相对原子核左右偏摆——瞬时偶极，
+                    每个原子就是一根原子尺度（~10<sup>−10</sup>&nbsp;m）的微型天线。
+                    关键在&ldquo;乱&rdquo;字：每次跃迁只摆 3–6 个周期（一段波列），
+                    然后相位、方向、时长全部随机重来（动画④中模式里那几个原子各摆各的，示波器 A 上能看见一道道&ldquo;重置相位&rdquo;的断口）。
+                    灯丝、太阳是 10<sup>20</sup> 个这样的微型天线乱相位合唱——
+                    <b className="text-zinc-200">单个原子每段都完美，叠加起来却乱颤</b>（示波器 B），
+                    这正是热光相干性差的根源。
+                  </p>
+                  <p>
+                    <b className="text-zinc-100">③ 激光：翻的还是电子云，但步调被&ldquo;克隆&rdquo;锁死。</b>
+                    受激辐射的规矩：新光子与来光<b className="text-zinc-200">同频率、同相位、同方向、同偏振</b>——
+                    一个光子路过激发态原子，出来的两个像同一个（动画④右模式看得见克隆雪崩）。
+                    于是亿万原子接力发射同一列波：A、B 两张示波器都完美——
+                    <b className="text-zinc-200">激光是最接近&ldquo;理想的一直从正翻到负的正弦源&rdquo;的真实光源</b>。
+                  </p>
+                  <p>
+                    <b className="text-zinc-100">④ 三种源的对偶与同一。</b>
+                    天线 = 人造的、放大到米级的&ldquo;原子&rdquo;（宏观偶极振子）；
+                    原子 = 天然的、缩小到埃级的&ldquo;天线&rdquo;；
+                    激光 = 用受激辐射把亿万&ldquo;原子天线&rdquo;调成同相的&ldquo;超级单天线&rdquo;。
+                    无论哪种，翻的从来不是搬运&ldquo;正负极板&rdquo;，而是<b className="text-zinc-200">电荷分布的往复</b>；
+                    翻的快慢就是光的频率——无线电 ~10<sup>8</sup> 次/秒，可见光 ~10<sup>14</sup> 次/秒。
+                  </p>
+                  <p className="border-t border-white/10 pt-2 text-zinc-400">
+                    在动画④里逐项检验：天线模式看两端 +Q/−Q 互换与波列的完美连续；
+                    热光模式看几个原子各自的断口与示波器 B 的乱颤；
+                    激光模式看&ldquo;泵浦 → 克隆雪崩 → 恒幅稳态&rdquo;，示波器 B 从零长成纯正弦后永不熄灭。
+                  </p>
+                </AlertDescription>
+              </Alert>
+            </FadeIn>
+            <FadeIn delay={0.06} className="mt-6">
+              <Alert className="border-indigo-500/30 bg-indigo-500/[0.07] text-zinc-200">
+                <Orbit className="h-5 w-5 !text-indigo-300" />
+                <AlertTitle className="text-sm font-semibold text-indigo-200">
+                  追问⑩：天线里动的是原子还是电子？热光那么乱为何不抵消成平线？激光波形不完美还算相干好吗？
+                </AlertTitle>
+                <AlertDescription className="mt-1.5 space-y-1.5 text-sm leading-relaxed text-zinc-300">
+                  <p>
+                    <b className="text-zinc-100">① 天线：动的只有自由电子，方向沿杆（长方向）——原子纹丝不动。</b>
+                    金属里有两套东西：钉死在晶格上的<b className="text-zinc-200">原子（正离子）</b>，
+                    和不属于任何原子的<b className="text-zinc-200">自由电子海</b>
+                    （导带电子，1 cm<sup>3</sup> 约 10<sup>23</sup> 个）。
+                    发射机推的是电子海：全杆电子<b className="text-zinc-200">同步</b>沿杆来回——
+                    像水管里的水整体晃，不是哪个原子在搬家；垂直杆的方向电子去不了（被束缚在导体内）。
+                    摆幅分布也有讲究（半波振子的驻波）：<b className="text-zinc-200">中心摆幅最大（电流最大），
+                    两端摆幅为零却堆积电荷最多（±Q）</b>——动画④已把固定的正离子（＋）和沿杆滑动的自由电子分开画出。
+                    真实摆幅仅微米量级，动画放大了约万倍。顺带：辐射出去的电场也沿杆方向摆——
+                    竖直天线发射竖直偏振波，电子的动法直接决定光的偏振。
+                  </p>
+                  <p>
+                    <b className="text-zinc-100">② 热光：猜对一半——瞬时场确实几乎抵消，但亮度不抵消。</b>
+                    N 个随机相位正弦相加，平均 ≈ 0，只剩 √N 量级涨落（相对涨落 1/√N）。
+                    动画④热光模式把原子数调到 3 → 12：B 图明显变平；真实灯丝 N~10<sup>20</sup>，
+                    涨落 ~10<sup>−10</sup>——瞬时场就是一条近乎平滑的细噪。
+                    但能量看的是 E<sup>2</sup> 的时间平均：交叉项平均为零、自项直接相加 →
+                    <b className="text-zinc-200">强度 = N × 单原子强度</b>——太阳耀眼靠强度相加，不是场的相干相加
+                    （&ldquo;抵消&rdquo;抵掉的是相干叠加，不是能量）。
+                    动画把总场除以 N（把&ldquo;全部同相&rdquo;的上限固定在 ±1）：12 个原子时乱颤只到 ~0.3；
+                    若不除，幅度会大 √12 倍、亮度大 12 倍——变平的是相对涨落，不是变暗。
+                    还有一层：每段波列内部 3–6 个周期是干净正弦——相干时间内&ldquo;它就是一列好波&rdquo;，
+                    所以热光过双缝照样出条纹（路程差小于相干长度即可）。
+                  </p>
+                  <p>
+                    <b className="text-zinc-100">③ 激光：之前的&ldquo;阶梯&rdquo;是玩具包络的呼吸，不是相位错乱；现在是连续波。</b>
+                    旧玩具按&ldquo;泵浦 → 雪崩 → 熄灭 → 重泵&rdquo;循环：幅度阶梯与熄灭间隙是输出包络在呼吸——
+                    每一轮内部频率、相位从未跳变（A 图从无&ldquo;重置相位&rdquo;断口，对比热光）。
+                    现已改成连续波：开启 → 幅度快速建立 → <b className="text-zinc-200">恒幅稳态、永不熄灭</b>，
+                    B 图从此是一条无限长的干净正弦。相干性好的判据从来不是&ldquo;波形看着漂亮&rdquo;，而是：
+                    <b className="text-zinc-200">频率单一</b>（Δν 极窄）、<b className="text-zinc-200">相位确定</b>（永不随机重置）、
+                    两列叠加能长时间保持稳定条纹——稳态激光的相干长度可达公里级（LIGO 的干涉就靠它）。
+                  </p>
+                  <p className="border-t border-white/10 pt-2 text-zinc-400">
+                    在动画④里逐项检验：天线模式——正离子（＋）纹丝不动，自由电子沿杆滑动、在两端堆出 ±Q；
+                    热光模式——原子数 3 → 12，看 B 图涨落按 1/√N 变平；
+                    激光模式——等横幅进入&ldquo;③ 稳态&rdquo;：此后 B 图恒幅纯正弦、永不熄灭，A 图无任何&ldquo;重置相位&rdquo;断口。
                   </p>
                 </AlertDescription>
               </Alert>

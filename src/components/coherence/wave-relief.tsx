@@ -39,6 +39,12 @@ const TONE: Record<string, string> = {
 
 const DIV_LUT8 = buildDivergingLut8()
 
+/* 源极性闪烁：红=源场为正、蓝=为负、暖白≈过零（与红/蓝起伏同色系） */
+const SRC_WARM = new THREE.Color(1.0, 0.96, 0.88)
+const SRC_POS = new THREE.Color(1.0, 0.45, 0.28)
+const SRC_NEG = new THREE.Color(0.38, 0.58, 1.0)
+const tmpSrc = new THREE.Color()
+
 /* 场值 u(x,z,t)：−1..+1（振幅 ∝ 1/r，外圈淡出） */
 function fieldAt(x: number, z: number, t: number): number {
   const r = Math.sqrt(x * x + z * z)
@@ -199,6 +205,27 @@ export function WavefrontRelief() {
     const glowTex = makeGlowTexture()
     disposables.push(glowTex)
 
+    /* 光源：钉在剖面中心的振荡点上——高度跟着源场上下，颜色跟着极性翻（红=正/蓝=负/白≈过零） */
+    const srcGeo = new THREE.SphereGeometry(0.1, 16, 12)
+    const srcMat = new THREE.MeshBasicMaterial({ color: 0xfff3e4 })
+    disposables.push(srcGeo, srcMat)
+    const srcBall = new THREE.Mesh(srcGeo, srcMat)
+    srcBall.renderOrder = 4
+    scene.add(srcBall)
+
+    const srcGlowMat = new THREE.SpriteMaterial({
+      map: glowTex,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false,
+      transparent: true,
+      opacity: 0.75,
+    })
+    disposables.push(srcGlowMat)
+    const srcGlow = new THREE.Sprite(srcGlowMat)
+    srcGlow.scale.setScalar(0.85)
+    srcGlow.renderOrder = 4
+    scene.add(srcGlow)
+
     const probeGeo = new THREE.SphereGeometry(0.09, 16, 12)
     const probeMat = new THREE.MeshBasicMaterial({ color: 0xfff3e8 })
     disposables.push(probeGeo, probeMat)
@@ -355,6 +382,17 @@ export function WavefrontRelief() {
       camera.lookAt(0, 0.15, 0)
       if (!s.paused && !s.dragging) s.theta += 0.05 * dt
 
+      /* 源极性闪烁：中心高度 = 源场值（跟着上下），颜色红/蓝/白 = 正/负/过零 */
+      const eSrc = Math.cos(OMEGA * t)
+      if (eSrc >= 0) tmpSrc.copy(SRC_WARM).lerp(SRC_POS, Math.min(1, eSrc * 1.12))
+      else tmpSrc.copy(SRC_WARM).lerp(SRC_NEG, Math.min(1, -eSrc * 1.12))
+      srcMat.color.copy(tmpSrc)
+      srcGlowMat.color.copy(tmpSrc)
+      srcGlow.scale.setScalar(0.72 + 0.3 * Math.abs(eSrc))
+      const srcY = eSrc * H * hs
+      srcBall.position.set(0, srcY, 0)
+      srcGlow.position.set(0, srcY, 0)
+
       /* 探针：放在朝向相机的一侧（固定半径，方向随视角），钉在起伏面上 */
       const rp = s.probeDist
       const dirX = Math.cos(s.theta)
@@ -415,6 +453,8 @@ export function WavefrontRelief() {
       /* 自检钩子（自动化验证用） */
       ;(window as unknown as { __wrelief?: object }).__wrelief = {
         t,
+        Es: +eSrc.toFixed(3),
+        srcY: +srcY.toFixed(3),
         hScale: +s.hScale.toFixed(3),
         flat: s.hTarget === 0,
         E: eP,
@@ -485,6 +525,8 @@ export function WavefrontRelief() {
               <b className="text-zinc-200">黑环是过零（E = 0）</b>，起伏穿过半透明&ldquo;水面&rdquo;
               就说明方向切换了。它长得就像水波——因为水波正是二维版球面波；区别只在：
               这里的高度是电场 E（振幅 ∝ 1/r），水面的高度是 h（∝ 1/√r）。
+              <b className="text-zinc-200">中心的光源</b>钉在振荡点上跟着上下——它的高度就是源场值、
+              颜色就是源极性（红=正、蓝=负、白≈过零），每翻到最红/最蓝，就有一层同色环从中心诞生；
               <b className="text-zinc-200">探针小球</b>钉在面上跟着上下，示波器记录它的高度——
               <b className="text-zinc-200">拖动画面旋转视角</b>，打开开关可摊平成红蓝亮度图。
             </CardDescription>
@@ -573,6 +615,10 @@ export function WavefrontRelief() {
           <span className="flex items-center gap-1.5">
             <span className="h-2.5 w-2.5 rounded-full border border-white/20 bg-black" />
             黑环 = 过零（零壳经过处）
+          </span>
+          <span className="flex items-center gap-1.5">
+            <span className="h-2.5 w-2.5 rounded-full bg-gradient-to-r from-red-400 via-white to-blue-400" />
+            光源 = 源极性（红=正 / 蓝=负 / 白≈过零）
           </span>
           <span className="flex items-center gap-1.5">
             <span className="h-2.5 w-2.5 rounded-full bg-blue-300/25" />
